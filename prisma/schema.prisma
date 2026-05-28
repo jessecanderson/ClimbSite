@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sessions  Session[]
+  trips     Trip[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model DestinationHub {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  name        String
+  region      String
+  summary     String
+  seasonNotes String?
+  lat         Float
+  lng         Float
+  sourceName  String?
+  sourceUrl   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  areas       HubClimbingArea[]
+  campgrounds HubCampground[]
+}
+
+model ClimbingArea {
+  id              String               @id @default(cuid())
+  slug            String               @unique
+  name            String
+  region          String
+  summary         String
+  bestFor         String
+  approach        String
+  approachMinutes Int?
+  parking         String
+  roadDifficulty  String
+  lat             Float
+  lng             Float
+  sourceType      String               @default("curated")
+  reviewStatus    String               @default("reviewed")
+  lastReviewedAt  DateTime?
+  sourceName      String?
+  sourceUrl       String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  hubLinks        HubClimbingArea[]
+  campgroundLinks AreaCampgroundLink[]
+  tripStops       TripStop[]
+}
+
+model Campground {
+  id              String               @id @default(cuid())
+  slug            String               @unique
+  name            String
+  type            String
+  summary         String
+  amenities       String
+  campingFit      String
+  reservationUrl  String?
+  sourceName      String?
+  sourceUrl       String?
+  lat             Float
+  lng             Float
+  sourceType      String               @default("curated")
+  reviewStatus    String               @default("reviewed")
+  lastReviewedAt  DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  hubLinks        HubCampground[]
+  areaLinks       AreaCampgroundLink[]
+  selectedStops   TripStop[]           @relation("SelectedCampground")
+}
+
+model AreaCampgroundLink {
+  id             String       @id @default(cuid())
+  climbingAreaId String
+  campgroundId   String
+  miles          Float
+  driveMinutes   Int
+  logisticsNote  String
+  rank           Int          @default(0)
+  sourceType     String       @default("curated")
+  reviewStatus   String       @default("reviewed")
+  lastReviewedAt DateTime?
+  climbingArea   ClimbingArea @relation(fields: [climbingAreaId], references: [id], onDelete: Cascade)
+  campground     Campground   @relation(fields: [campgroundId], references: [id], onDelete: Cascade)
+
+  @@unique([climbingAreaId, campgroundId])
+  @@index([campgroundId])
+}
+
+model HubClimbingArea {
+  hubId          String
+  climbingAreaId String
+  rank           Int    @default(0)
+  hub            DestinationHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  climbingArea   ClimbingArea   @relation(fields: [climbingAreaId], references: [id], onDelete: Cascade)
+
+  @@id([hubId, climbingAreaId])
+  @@index([climbingAreaId])
+}
+
+model HubCampground {
+  hubId        String
+  campgroundId String
+  rank         Int    @default(0)
+  hub          DestinationHub @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  campground   Campground     @relation(fields: [campgroundId], references: [id], onDelete: Cascade)
+
+  @@id([hubId, campgroundId])
+  @@index([campgroundId])
+}
+
+model Trip {
+  id        String     @id @default(cuid())
+  name      String
+  notes     String?
+  userId    String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stops     TripStop[]
+
+  @@index([userId])
+}
+
+model TripStop {
+  id             String       @id @default(cuid())
+  tripId         String
+  climbingAreaId String
+  selectedCampgroundId String?
+  order          Int
+  notes          String?
+  createdAt      DateTime     @default(now())
+  trip           Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  climbingArea   ClimbingArea @relation(fields: [climbingAreaId], references: [id])
+  selectedCampground Campground? @relation("SelectedCampground", fields: [selectedCampgroundId], references: [id])
+
+  @@index([tripId])
+  @@index([climbingAreaId])
+  @@index([selectedCampgroundId])
+}

@@ -1,0 +1,14 @@
+node_modules
+.pnpm-store
+.next
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+dist
+coverage
+*.tsbuildinfo
+prisma/dev.db
+prisma/dev.db-*
+.vercel
