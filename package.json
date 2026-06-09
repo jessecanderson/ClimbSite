@@ -10,13 +10,18 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "import:ridb:campgrounds": "tsx scripts/import-ridb-campgrounds.ts",
+    "import:ridb:climbing-areas": "tsx scripts/import-ridb-climbing-areas.ts",
+    "import:openbeta:climbing-areas": "tsx scripts/import-openbeta-climbing-areas.ts"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.2",
     "@prisma/client": "^6.19.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.468.0",
     "next": "^15.5.7",
+    "next-auth": "5.0.0-beta.31",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-leaflet": "^5.0.0",

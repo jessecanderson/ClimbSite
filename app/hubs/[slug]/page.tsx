@@ -76,7 +76,7 @@ export default async function HubDetailPage({ params }: { params: Promise<{ slug
         </div>
         <div className="grid">
           {hub.areas.map(({ climbingArea }) => (
-            <Link className="card" href={`/areas/${climbingArea.slug}`} key={climbingArea.id}>
+            <article className="card" key={climbingArea.id}>
               <div className="meta-row">
                 <span className="pill">
                   <BadgeCheck size={14} />
@@ -89,7 +89,20 @@ export default async function HubDetailPage({ params }: { params: Promise<{ slug
               </div>
               <h3>{climbingArea.name}</h3>
               <p>{climbingArea.summary}</p>
-            </Link>
+              <div className="card-actions">
+                <Link className="ghost-button" href={`/areas/${climbingArea.slug}`}>
+                  View area
+                </Link>
+                {climbingArea.sourceUrl ? (
+                  <a className="ghost-button" href={climbingArea.sourceUrl} target="_blank">
+                    <ExternalLink size={17} />
+                    {climbingArea.sourceName
+                      ? `${climbingArea.sourceName} details`
+                      : "Route / access source"}
+                  </a>
+                ) : null}
+              </div>
+            </article>
           ))}
         </div>
       </section>
@@ -120,7 +133,7 @@ export default async function HubDetailPage({ params }: { params: Promise<{ slug
               {campground.reservationUrl ? (
                 <a className="ghost-button" href={campground.reservationUrl} target="_blank">
                   <ExternalLink size={17} />
-                  Reserve / details
+                  Camping / booking details
                 </a>
               ) : null}
             </article>

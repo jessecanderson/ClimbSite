@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CalendarDays, Plus, Route } from "lucide-react";
+import { DeleteTripButton } from "@/components/DeleteTripButton";
 import { getCurrentUser } from "@/lib/auth";
 import { getTripsForUser } from "@/lib/queries";
 import { redirect } from "next/navigation";
@@ -17,7 +18,7 @@ export default async function TripsPage() {
     <main className="page">
       <div className="section-head">
         <div>
-          <p className="eyebrow">{user.email}</p>
+          <p className="eyebrow">{user.email ?? "Signed in"}</p>
           <h1>Your climbing trips</h1>
           <p className="lead">Saved road-trip plans with manual climbing stops and camping logistics.</p>
         </div>
@@ -38,9 +39,16 @@ export default async function TripsPage() {
       ) : (
         <div className="grid">
           {trips.map((trip) => (
-            <Link className="card" href={`/trips/${trip.id}`} key={trip.id}>
-              <h3>{trip.name}</h3>
-              <p>{trip.notes || "No trip notes yet."}</p>
+            <article className="card" key={trip.id}>
+              <div className="section-head">
+                <Link href={`/trips/${trip.id}`}>
+                  <h3>{trip.name}</h3>
+                </Link>
+                <DeleteTripButton tripId={trip.id} tripName={trip.name} compact />
+              </div>
+              <Link href={`/trips/${trip.id}`}>
+                <p>{trip.notes || "No trip notes yet."}</p>
+              </Link>
               <div className="meta-row">
                 <span className="pill">
                   <Route size={14} />
@@ -51,7 +59,7 @@ export default async function TripsPage() {
                   {trip.updatedAt.toLocaleDateString()}
                 </span>
               </div>
-            </Link>
+            </article>
           ))}
         </div>
       )}

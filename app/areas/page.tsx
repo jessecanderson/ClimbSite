@@ -11,13 +11,16 @@ export default async function AreasPage() {
         <div>
           <p className="eyebrow">Climbing Areas</p>
           <h1>Southeast climbing areas</h1>
-          <p className="lead">Curated and reviewed climbing stops with approach, parking, and nearby camping context.</p>
+          <p className="lead">
+            Curated and reviewed climbing stops with approach, parking, nearby camping context, and
+            outbound source links for route and access details.
+          </p>
         </div>
       </div>
 
       <div className="grid">
         {areas.map((area) => (
-          <Link className="card" href={`/areas/${area.slug}`} key={area.id}>
+          <article className="card" key={area.id}>
             <h3>{area.name}</h3>
             <p>{area.summary}</p>
             <div className="meta-row">
@@ -38,13 +41,18 @@ export default async function AreasPage() {
                 {area.campgroundLinks.length} nearby
               </span>
             </div>
-            {area.sourceUrl ? (
-              <span className="pill">
-                <ExternalLink size={14} />
-                Source link
-              </span>
-            ) : null}
-          </Link>
+            <div className="card-actions">
+              <Link className="ghost-button" href={`/areas/${area.slug}`}>
+                View area
+              </Link>
+              {area.sourceUrl ? (
+                <a className="ghost-button" href={area.sourceUrl} target="_blank">
+                  <ExternalLink size={17} />
+                  Route / access source
+                </a>
+              ) : null}
+            </div>
+          </article>
         ))}
       </div>
     </main>

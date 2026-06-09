@@ -67,8 +67,8 @@ export default async function HomePage() {
           </article>
           <article className="card">
             <Route color="#c28b31" />
-            <h3>Manual road trips</h3>
-            <p>Pick the climbing stops yourself, then use the app to organize the sleep logistics.</p>
+            <h3>Guidebook links</h3>
+            <p>Use ClimbSite to pair climbing areas with camp logistics, then follow source links for route details.</p>
           </article>
         </div>
       </section>

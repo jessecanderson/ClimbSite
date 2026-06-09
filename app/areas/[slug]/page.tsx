@@ -56,6 +56,20 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
 
           <div className="list">
             <article className="card">
+              <h3>Route and access details</h3>
+              <p>
+                ClimbSite connects this climbing area to nearby overnight options, but it is not the
+                route guide or access authority. Use the source link for current route, access,
+                permit, and closure details before climbing.
+              </p>
+              {area.sourceUrl ? (
+                <a className="ghost-button" href={area.sourceUrl} target="_blank">
+                  <ExternalLink size={17} />
+                  {area.sourceName ? `${area.sourceName} details` : "Route / access details"}
+                </a>
+              ) : null}
+            </article>
+            <article className="card">
               <h3>Approach</h3>
               <p>{area.approach}</p>
             </article>
@@ -110,7 +124,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
               {link.campground.reservationUrl ? (
                 <a className="ghost-button" href={link.campground.reservationUrl} target="_blank">
                   <ExternalLink size={17} />
-                  Reserve / details
+                  Camping / booking details
                 </a>
               ) : null}
             </article>

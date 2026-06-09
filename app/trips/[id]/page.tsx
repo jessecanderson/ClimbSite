@@ -1,7 +1,15 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { BadgeCheck, CheckCircle2, Clock, ExternalLink, MapPin, Plus, Tent, Trash2 } from "lucide-react";
-import { addStopAction, removeStopAction, selectCampgroundAction } from "@/app/actions";
+import { BadgeCheck, CheckCircle2, Clock, ExternalLink, MapPin, Plus, Save, Tent, Trash2 } from "lucide-react";
+import {
+  addStopAction,
+  removeStopAction,
+  selectCampgroundAction,
+  updateStopNotesAction,
+  updateTripAction
+} from "@/app/actions";
+import { DeleteTripButton } from "@/components/DeleteTripButton";
+import { ShareTripButton } from "@/components/ShareTripButton";
 import { getCurrentUser } from "@/lib/auth";
 import { getAreas, getTripForUser } from "@/lib/queries";
 import { DynamicAreaMap } from "@/components/DynamicAreaMap";
@@ -22,6 +30,32 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   const selectedCampCount = trip.stops.filter((stop) => stop.selectedCampgroundId).length;
   const missingCampCount = trip.stops.length - selectedCampCount;
+  const shareSummary = [
+    `${trip.name}`,
+    trip.notes ? `Notes: ${trip.notes}` : null,
+    "",
+    ...trip.stops.map((stop) => {
+      const selectedLink = stop.climbingArea.campgroundLinks.find(
+        (link) => link.campgroundId === stop.selectedCampgroundId
+      );
+
+      return [
+        `Stop ${stop.order}: ${stop.climbingArea.name}`,
+        `Area source: ${stop.climbingArea.sourceUrl ?? "No source link saved"}`,
+        selectedLink
+          ? `Camp: ${selectedLink.campground.name} (${selectedLink.driveMinutes} min, ${selectedLink.miles} mi)`
+          : "Camp: Not selected",
+        selectedLink?.campground.reservationUrl
+          ? `Camp details: ${selectedLink.campground.reservationUrl}`
+          : null,
+        stop.notes ? `Stop notes: ${stop.notes}` : null
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
   const points = trip.stops.flatMap((stop) => [
     {
       name: stop.climbingArea.name,
@@ -55,6 +89,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             {missingCampCount > 0 ? <span className="pill">{missingCampCount} missing camps</span> : null}
             <span className="pill">Updated {trip.updatedAt.toLocaleDateString()}</span>
           </div>
+          <div className="actions">
+            <ShareTripButton summary={shareSummary} />
+            <DeleteTripButton tripId={trip.id} tripName={trip.name} />
+          </div>
         </div>
         <div className="panel map-frame">
           {points.length > 0 ? <DynamicAreaMap points={points} /> : <div className="empty">Add a stop to build the map.</div>}
@@ -63,6 +101,24 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
       <section className="section">
         <div className="grid">
+          <article className="card">
+            <h3>Edit Trip</h3>
+            <form className="form" action={updateTripAction}>
+              <input type="hidden" name="tripId" value={trip.id} />
+              <label className="field">
+                <span>Trip name</span>
+                <input className="input" name="name" required defaultValue={trip.name} />
+              </label>
+              <label className="field">
+                <span>Notes</span>
+                <textarea className="input" name="notes" defaultValue={trip.notes ?? ""} />
+              </label>
+              <button className="button" type="submit">
+                <Save size={17} />
+                Save trip
+              </button>
+            </form>
+          </article>
           <article className="card">
             <h3>Trip Status</h3>
             <p>
@@ -82,12 +138,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             </div>
           </article>
           <article className="card">
-            <h3>Reservation Flow</h3>
-            <p>ClimbSite stores the planning choice and sends you to the official campground or booking source.</p>
-          </article>
-          <article className="card">
             <h3>Data Quality</h3>
-            <p>Curated badges mean the logistics were manually reviewed instead of only imported from a baseline source.</p>
+            <p>
+              Curated badges mean the logistics were manually reviewed. Use each area and campground
+              source link for current route, access, permit, closure, and booking details.
+            </p>
           </article>
         </div>
       </section>
@@ -102,7 +157,12 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
 
           {trip.stops.length === 0 ? (
-            <div className="empty">No stops yet. Add one from the panel.</div>
+            <div className="empty">
+              <p>No stops yet. Add a climbing area from the panel to start comparing nearby camps.</p>
+              <Link className="button" href="/areas">
+                Browse areas
+              </Link>
+            </div>
           ) : (
             <div className="list">
               {trip.stops.map((stop) => (
@@ -141,6 +201,23 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                     </span>
                   </div>
                   <p>{stop.climbingArea.approach}</p>
+                  <form className="form compact-form" action={updateStopNotesAction}>
+                    <input type="hidden" name="tripId" value={trip.id} />
+                    <input type="hidden" name="stopId" value={stop.id} />
+                    <label className="field">
+                      <span>Stop notes</span>
+                      <textarea
+                        className="input"
+                        name="notes"
+                        defaultValue={stop.notes ?? ""}
+                        placeholder="Routes to research, partner notes, weather backup..."
+                      />
+                    </label>
+                    <button className="ghost-button" type="submit">
+                      <Save size={17} />
+                      Save notes
+                    </button>
+                  </form>
 
                   {selectedLink ? (
                     <div className="selected-camp">
@@ -160,7 +237,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                       {selectedLink.campground.reservationUrl ? (
                         <a className="button" href={selectedLink.campground.reservationUrl} target="_blank">
                           <ExternalLink size={17} />
-                          Reserve / details
+                          Camping / booking details
                         </a>
                       ) : null}
                     </div>
@@ -200,12 +277,18 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                         {link.campground.reservationUrl ? (
                           <a className="ghost-button" href={link.campground.reservationUrl} target="_blank">
                             <ExternalLink size={17} />
-                            Reserve / details
+                            Camping / booking details
                           </a>
                         ) : null}
                         </div>
                       </div>
                     ))}
+                    {stop.climbingArea.campgroundLinks.length === 0 ? (
+                      <div className="empty">
+                        No campground links are reviewed for this area yet. Use the area source link
+                        for current access details while this stop gets researched.
+                      </div>
+                    ) : null}
                   </div>
                       </>
                     );
