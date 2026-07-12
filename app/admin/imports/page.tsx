@@ -81,6 +81,10 @@ export default async function AdminImportsPage({
               </Link>
             </p>
           </div>
+          <Link className="button" href="/admin/content">
+            <FileSearch size={17} />
+            Edit and publish content
+          </Link>
         </div>
 
         <div className="grid">

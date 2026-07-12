@@ -2,6 +2,13 @@
 
 Use the deployed app at `https://climbsite.vercel.app`.
 
+## Before Inviting Testers
+
+- Confirm production has `AUTH_EMAIL_FALLBACK=false`.
+- Confirm Resend is configured for `ClimbSite <login@climbsite.app>`.
+- Confirm Google OAuth allows `https://climbsite.vercel.app/api/auth/callback/google`.
+- Confirm `/login` shows real sign-in methods, not the temporary email fallback.
+
 ## What To Test
 
 - Browse `/areas` and confirm source links open the external climbing/access source.
@@ -27,6 +34,17 @@ Admin users can open `/admin/imports`.
 - Use `Link reference` when an import matches an existing public record.
 - Use `Accept as new` only when the candidate has enough location/source context to publish as a
   `needs_review` imported record.
+
+Open `/admin/content` for the editorial publication workflow.
+
+- Confirm accepted imports appear in the appropriate `needs_review` queue.
+- Edit and save an area or campground without publishing it.
+- Confirm placeholder text and missing source URLs prevent publication.
+- Publish a complete area and campground and confirm they appear in public discovery.
+- Create an area-to-campground relationship with mileage, drive time, rank, and a logistics note.
+- Confirm a relationship cannot publish until both its area and campground are reviewed.
+- Return a reviewed record to review and confirm it disappears from public discovery.
+- Add a manual area or campground when no import source contains the location.
 
 ## Feedback We Want
 

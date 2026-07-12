@@ -8,7 +8,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
 const providers: NextAuthConfig["providers"] = [];
-const emailFallbackEnabled = process.env.AUTH_EMAIL_FALLBACK !== "false";
+const emailFallbackEnabled =
+  process.env.NODE_ENV !== "production" && process.env.AUTH_EMAIL_FALLBACK !== "false";
 
 if (emailFallbackEnabled) {
   providers.push(

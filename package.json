@@ -13,6 +13,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "import:ridb:campgrounds": "tsx scripts/import-ridb-campgrounds.ts",
     "import:ridb:climbing-areas": "tsx scripts/import-ridb-climbing-areas.ts",
+    "import:nps:campgrounds": "tsx scripts/import-nps-campgrounds.ts",
     "import:openbeta:climbing-areas": "tsx scripts/import-openbeta-climbing-areas.ts"
   },
   "dependencies": {
