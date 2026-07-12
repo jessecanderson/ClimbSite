@@ -7,25 +7,96 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ImportEntityType {
+  CAMPGROUND
+  CLIMBING_AREA
+}
+
+enum ImportRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum ImportCandidateStatus {
+  PENDING
+  ACCEPTED
+  LINKED
+  IGNORED
+  NEEDS_RESEARCH
+}
+
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  name      String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  sessions  Session[]
-  trips     Trip[]
+  id            String          @id @default(cuid())
+  name          String?
+  email         String?         @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role            @default(USER)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  authenticators Authenticator[]
+  trips         Trip[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  userId    String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String   @id
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
 }
 
 model DestinationHub {
@@ -43,6 +114,91 @@ model DestinationHub {
   updatedAt   DateTime        @updatedAt
   areas       HubClimbingArea[]
   campgrounds HubCampground[]
+}
+
+model DataSource {
+  id          String              @id @default(cuid())
+  key         String              @unique
+  name        String
+  baseUrl     String?
+  docsUrl     String?
+  termsUrl    String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  importRuns  ImportRun[]
+  candidates  ImportCandidate[]
+  references  ExternalReference[]
+}
+
+model ImportRun {
+  id              String          @id @default(cuid())
+  sourceId        String
+  entityType      ImportEntityType
+  status          ImportRunStatus @default(RUNNING)
+  params          Json
+  startedAt       DateTime        @default(now())
+  finishedAt      DateTime?
+  fetchedCount    Int             @default(0)
+  candidateCount  Int             @default(0)
+  skippedCount    Int             @default(0)
+  error           String?
+  source          DataSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  candidates      ImportCandidate[]
+
+  @@index([sourceId])
+  @@index([entityType])
+  @@index([status])
+}
+
+model ImportCandidate {
+  id                 String                @id @default(cuid())
+  sourceId           String
+  importRunId        String?
+  entityType         ImportEntityType
+  externalId         String
+  name               String
+  normalizedName     String
+  region             String?
+  sourceUrl          String?
+  lat                Float?
+  lng                Float?
+  rawPayload         Json
+  mappedPayload      Json
+  status             ImportCandidateStatus @default(PENDING)
+  matchedCampgroundId String?
+  matchedAreaId      String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  source             DataSource            @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  importRun          ImportRun?            @relation(fields: [importRunId], references: [id], onDelete: SetNull)
+  matchedCampground  Campground?           @relation("CampgroundImportCandidates", fields: [matchedCampgroundId], references: [id])
+  matchedArea        ClimbingArea?         @relation("ClimbingAreaImportCandidates", fields: [matchedAreaId], references: [id])
+
+  @@unique([sourceId, entityType, externalId])
+  @@index([importRunId])
+  @@index([entityType])
+  @@index([status])
+  @@index([matchedCampgroundId])
+  @@index([matchedAreaId])
+}
+
+model ExternalReference {
+  id             String           @id @default(cuid())
+  sourceId       String
+  entityType     ImportEntityType
+  externalId     String
+  sourceUrl      String?
+  campgroundId   String?
+  climbingAreaId String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  source         DataSource       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  campground     Campground?      @relation(fields: [campgroundId], references: [id], onDelete: Cascade)
+  climbingArea   ClimbingArea?    @relation(fields: [climbingAreaId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, entityType, externalId])
+  @@index([campgroundId])
+  @@index([climbingAreaId])
 }
 
 model ClimbingArea {
@@ -68,6 +224,8 @@ model ClimbingArea {
   hubLinks        HubClimbingArea[]
   campgroundLinks AreaCampgroundLink[]
   tripStops       TripStop[]
+  importCandidates ImportCandidate[]      @relation("ClimbingAreaImportCandidates")
+  externalReferences ExternalReference[]
 }
 
 model Campground {
@@ -91,6 +249,8 @@ model Campground {
   hubLinks        HubCampground[]
   areaLinks       AreaCampgroundLink[]
   selectedStops   TripStop[]           @relation("SelectedCampground")
+  importCandidates ImportCandidate[]    @relation("CampgroundImportCandidates")
+  externalReferences ExternalReference[]
 }
 
 model AreaCampgroundLink {
@@ -137,6 +297,8 @@ model Trip {
   id        String     @id @default(cuid())
   name      String
   notes     String?
+  startDate DateTime?  @db.Date
+  endDate   DateTime?  @db.Date
   userId    String
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -153,6 +315,7 @@ model TripStop {
   selectedCampgroundId String?
   order          Int
   notes          String?
+  plannedDate    DateTime?    @db.Date
   createdAt      DateTime     @default(now())
   trip           Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
   climbingArea   ClimbingArea @relation(fields: [climbingAreaId], references: [id])

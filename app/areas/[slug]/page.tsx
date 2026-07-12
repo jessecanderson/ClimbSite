@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, BadgeCheck, Clock, ExternalLink, MapPin, Route, Tent } from "lucide-react";
 import { DynamicAreaMap } from "@/components/DynamicAreaMap";
 import { getAreaBySlug } from "@/lib/queries";
+import { formatTripDate } from "@/lib/dates";
 
 export default async function AreaDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -13,13 +14,14 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
   }
 
   const points = [
-    { name: area.name, lat: area.lat, lng: area.lng, kind: "area" as const, detail: area.bestFor },
+    { name: area.name, lat: area.lat, lng: area.lng, kind: "area" as const, detail: area.bestFor, href: `/areas/${area.slug}` },
     ...area.campgroundLinks.map((link) => ({
       name: link.campground.name,
       lat: link.campground.lat,
       lng: link.campground.lng,
       kind: "campground" as const,
-      detail: `${link.driveMinutes} min drive, ${link.miles} mi`
+      detail: `${link.driveMinutes} min drive, ${link.miles} mi`,
+      href: link.campground.reservationUrl ?? undefined
     }))
   ];
 
@@ -40,6 +42,9 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
               <BadgeCheck size={14} />
               {area.reviewStatus === "reviewed" ? "Curated" : "Needs review"}
             </span>
+            {area.lastReviewedAt ? (
+              <span className="pill">Reviewed {formatTripDate(area.lastReviewedAt)}</span>
+            ) : null}
             <span className="pill">
               <Route size={14} />
               {area.bestFor}
@@ -55,6 +60,20 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
           </div>
 
           <div className="list">
+            <article className="card">
+              <h3>Route and access details</h3>
+              <p>
+                ClimbSite connects this climbing area to nearby overnight options, but it is not the
+                route guide or access authority. Use the source link for current route, access,
+                permit, and closure details before climbing.
+              </p>
+              {area.sourceUrl ? (
+                <a className="ghost-button" href={area.sourceUrl} target="_blank">
+                  <ExternalLink size={17} />
+                  {area.sourceName ? `${area.sourceName} details` : "Route / access details"}
+                </a>
+              ) : null}
+            </article>
             <article className="card">
               <h3>Approach</h3>
               <p>{area.approach}</p>
@@ -77,9 +96,9 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
             <p className="eyebrow">Camping Nearby</p>
             <h2>Sleep options for this stop</h2>
           </div>
-          <Link className="button" href="/trips/new">
+          <Link className="button" href={`/trips/new?area=${encodeURIComponent(area.slug)}`}>
             <Route size={17} />
-            Plan with this area
+            Start a trip here
           </Link>
         </div>
 
@@ -91,6 +110,9 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
                   <BadgeCheck size={14} />
                   {link.reviewStatus === "reviewed" ? "Curated logistics" : "Needs review"}
                 </span>
+                {link.lastReviewedAt ? (
+                  <span className="pill">Reviewed {formatTripDate(link.lastReviewedAt)}</span>
+                ) : null}
               </div>
               <h3>{link.campground.name}</h3>
               <p>{link.campground.summary}</p>
@@ -110,7 +132,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
               {link.campground.reservationUrl ? (
                 <a className="ghost-button" href={link.campground.reservationUrl} target="_blank">
                   <ExternalLink size={17} />
-                  Reserve / details
+                  Camping / booking details
                 </a>
               ) : null}
             </article>

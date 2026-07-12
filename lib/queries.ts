@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 export function getAreas() {
   return prisma.climbingArea.findMany({
+    where: { reviewStatus: "reviewed" },
     orderBy: [{ region: "asc" }, { name: "asc" }],
     include: {
       hubLinks: {
@@ -9,6 +10,10 @@ export function getAreas() {
         orderBy: { rank: "asc" }
       },
       campgroundLinks: {
+        where: {
+          reviewStatus: "reviewed",
+          campground: { reviewStatus: "reviewed" }
+        },
         orderBy: { rank: "asc" },
         include: { campground: true }
       }
@@ -18,13 +23,17 @@ export function getAreas() {
 
 export function getAreaBySlug(slug: string) {
   return prisma.climbingArea.findUnique({
-    where: { slug },
+    where: { slug, reviewStatus: "reviewed" },
     include: {
       hubLinks: {
         include: { hub: true },
         orderBy: { rank: "asc" }
       },
       campgroundLinks: {
+        where: {
+          reviewStatus: "reviewed",
+          campground: { reviewStatus: "reviewed" }
+        },
         orderBy: [{ rank: "asc" }, { driveMinutes: "asc" }],
         include: { campground: true }
       }
@@ -37,11 +46,16 @@ export function getHubs() {
     orderBy: [{ region: "asc" }, { name: "asc" }],
     include: {
       areas: {
+        where: { climbingArea: { reviewStatus: "reviewed" } },
         orderBy: { rank: "asc" },
         include: {
           climbingArea: {
             include: {
               campgroundLinks: {
+                where: {
+                  reviewStatus: "reviewed",
+                  campground: { reviewStatus: "reviewed" }
+                },
                 orderBy: { rank: "asc" },
                 include: { campground: true }
               }
@@ -50,6 +64,7 @@ export function getHubs() {
         }
       },
       campgrounds: {
+        where: { campground: { reviewStatus: "reviewed" } },
         orderBy: { rank: "asc" },
         include: { campground: true }
       }
@@ -62,11 +77,16 @@ export function getHubBySlug(slug: string) {
     where: { slug },
     include: {
       areas: {
+        where: { climbingArea: { reviewStatus: "reviewed" } },
         orderBy: { rank: "asc" },
         include: {
           climbingArea: {
             include: {
               campgroundLinks: {
+                where: {
+                  reviewStatus: "reviewed",
+                  campground: { reviewStatus: "reviewed" }
+                },
                 orderBy: { rank: "asc" },
                 include: { campground: true }
               }
@@ -75,6 +95,7 @@ export function getHubBySlug(slug: string) {
         }
       },
       campgrounds: {
+        where: { campground: { reviewStatus: "reviewed" } },
         orderBy: { rank: "asc" },
         include: { campground: true }
       }
@@ -84,6 +105,7 @@ export function getHubBySlug(slug: string) {
 
 export function getCampgrounds() {
   return prisma.campground.findMany({
+    where: { reviewStatus: "reviewed" },
     orderBy: { name: "asc" }
   });
 }
@@ -99,6 +121,10 @@ export function getTripForUser(tripId: string, userId: string) {
           climbingArea: {
             include: {
               campgroundLinks: {
+                where: {
+                  reviewStatus: "reviewed",
+                  campground: { reviewStatus: "reviewed" }
+                },
                 orderBy: { rank: "asc" },
                 include: { campground: true }
               }
