@@ -41,7 +41,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               {user ? (
                 <>
                   {user.role === "ADMIN" ? (
-                    <Link className="nav-link" href="/admin/imports">
+                    <Link className="nav-link" href="/admin/content">
                       <Database size={17} />
                       Admin
                     </Link>
@@ -106,6 +106,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 <a className="footer-link" href="https://openbeta.io/" target="_blank">
                   <ExternalLink size={16} />
                   openbeta.io
+                </a>
+                <a className="footer-link" href="https://www.nps.gov/" target="_blank">
+                  <ExternalLink size={16} />
+                  National Park Service
                 </a>
               </div>
             </div>

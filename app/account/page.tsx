@@ -56,11 +56,11 @@ export default async function AccountPage() {
           </article>
           <article className="card">
             <ShieldCheck color="#c28b31" />
-            <h3>Sign-in Methods</h3>
-            <p>Magic link, Google, and Apple sign-in can attach to this same account identity.</p>
-            <Link className="ghost-button" href="/login">
-              Manage sign in
-            </Link>
+            <h3>Sign-in Security</h3>
+            <p>
+              Continue using the sign-in method associated with this account. Securely linking
+              additional providers is not available yet.
+            </p>
           </article>
         </div>
       </section>

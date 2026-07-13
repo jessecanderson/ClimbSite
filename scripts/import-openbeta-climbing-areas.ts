@@ -137,6 +137,26 @@ function toJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
+function coordinatePair(latValue?: number | null, lngValue?: number | null) {
+  if (
+    latValue === null ||
+    latValue === undefined ||
+    lngValue === null ||
+    lngValue === undefined ||
+    !Number.isFinite(latValue) ||
+    !Number.isFinite(lngValue) ||
+    latValue < -90 ||
+    latValue > 90 ||
+    lngValue < -180 ||
+    lngValue > 180 ||
+    (latValue === 0 && lngValue === 0)
+  ) {
+    return { lat: null, lng: null };
+  }
+
+  return { lat: latValue, lng: lngValue };
+}
+
 function sourceUrlForArea(area: Pick<OpenBetaArea, "uuid">) {
   return `https://openbeta.io/areas/${area.uuid}`;
 }
@@ -311,6 +331,7 @@ async function main() {
           }
 
           seenExternalIds.add(externalId);
+          const { lat, lng } = coordinatePair(row.area.metadata.lat, row.area.metadata.lng);
 
           await prisma.importCandidate.upsert({
             where: {
@@ -326,8 +347,8 @@ async function main() {
               normalizedName: normalizeName(name),
               region: regionForArea(row.area),
               sourceUrl: sourceUrlForArea(row.area),
-              lat: row.area.metadata.lat ?? null,
-              lng: row.area.metadata.lng ?? null,
+              lat,
+              lng,
               rawPayload: toJson(row.area),
               mappedPayload: toJson(mappedPayloadForArea(row.area, row.parentName))
             },
@@ -340,8 +361,8 @@ async function main() {
               normalizedName: normalizeName(name),
               region: regionForArea(row.area),
               sourceUrl: sourceUrlForArea(row.area),
-              lat: row.area.metadata.lat ?? null,
-              lng: row.area.metadata.lng ?? null,
+              lat,
+              lng,
               rawPayload: toJson(row.area),
               mappedPayload: toJson(mappedPayloadForArea(row.area, row.parentName))
             }

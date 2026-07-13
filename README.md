@@ -53,10 +53,11 @@ Copy `.env.example` to `.env` if needed:
 DATABASE_URL="postgresql://USER:PASSWORD@HOST/climbsite?sslmode=require"
 AUTH_SECRET="generate-a-long-random-secret"
 AUTH_URL="http://localhost:3000"
+AUTH_EMAIL_FALLBACK="true"
 
 # Magic-link email sign-in
 AUTH_RESEND_KEY="re_..."
-AUTH_EMAIL_FROM="ClimbSite <login@your-domain.com>"
+AUTH_EMAIL_FROM="ClimbSite <login@climbsite.app>"
 
 # Optional OAuth providers
 AUTH_GOOGLE_ID=""
@@ -66,10 +67,14 @@ AUTH_APPLE_SECRET=""
 
 # Recreation.gov RIDB imports
 RIDB_API_KEY=""
+
+# National Park Service campground imports
+NPS_API_KEY=""
 ```
 
 `AUTH_SECRET` is required in production. Local development has a fallback secret so pages can render
 before credentials are configured, but real deployments should always set a generated secret.
+`AUTH_EMAIL_FALLBACK` should be `true` only for local development or private testing.
 
 Auth providers are enabled only when their env vars are present:
 
@@ -77,11 +82,30 @@ Auth providers are enabled only when their env vars are present:
 - Google sign-in requires `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`.
 - Apple sign-in requires `AUTH_APPLE_ID` and `AUTH_APPLE_SECRET`.
 
+Production tester auth should use real providers:
+
+```bash
+AUTH_URL="https://climbsite.vercel.app"
+AUTH_EMAIL_FALLBACK="false"
+AUTH_EMAIL_FROM="ClimbSite <login@climbsite.app>"
+```
+
+Configure Resend for the `climbsite.app` sender domain before inviting testers. Configure Google
+OAuth with this production callback URL:
+
+```text
+https://climbsite.vercel.app/api/auth/callback/google
+```
+
+Changing configured providers does not remove existing users, trips, or admin roles. Auth.js does
+not automatically link an OAuth identity to an existing same-email account; users should continue
+with their original method until an authenticated account-linking flow is implemented.
+
 ## Authentication
 
-ClimbSite uses Auth.js as the account layer. Trips are owned by `User.id`, not by a specific login
-method, so the same account can support magic links, Google, Apple, and future credentials without
-orphaning saved trips.
+ClimbSite uses Auth.js as the account layer. Trips are owned by `User.id`, not by a provider account.
+Automatic same-email provider linking remains disabled because Auth.js correctly treats it as unsafe
+between arbitrary providers.
 
 Current auth routes:
 
@@ -119,13 +143,19 @@ where email = 'you@example.com';
 Admin functionality is available at `/admin/imports` for users with `role = ADMIN`. The current
 review screen shows recent import runs, filters candidates by status/entity type, and supports:
 
-- Accepting a candidate as a new `needs_review` public record.
+- Accepting a candidate as a new quarantined `needs_review` record.
 - Linking a candidate to an existing campground or climbing area as an `ExternalReference`.
 - Marking a candidate as `NEEDS_RESEARCH`.
 - Ignoring a candidate.
 
-Imported records should remain review-gated. Accepting a candidate publishes it as imported data
-that still needs editorial review, not as a curated record.
+Imported records remain review-gated. Accepting a candidate creates an imported record that still
+needs editorial review; public discovery only exposes records and area/camp relationships with
+`reviewStatus = reviewed`.
+
+Canonical editing and publication are available at `/admin/content`. Admins can create records
+manually, edit accepted imports, publish or unpublish areas and campgrounds, and create reviewed
+area-to-campground logistics relationships. Publication requires complete editorial text and an
+authoritative source URL; relationships require both endpoint records to be reviewed first.
 
 ## API Integration Roadmap
 
@@ -139,10 +169,11 @@ Recommended integration order and current status:
 2. Done: import campground/facility metadata from Recreation.gov RIDB.
 3. Done: import broad climbing recreation-area metadata from Recreation.gov RIDB.
 4. Done: import climbing area metadata from OpenBeta where coverage exists.
-5. Next: import park/campground/alert metadata from the National Park Service API.
-6. Later: add OpenStreetMap/Overpass enrichment for geospatial details only after caching and rate-limit
+5. Done: import review-gated campground metadata from the National Park Service API.
+6. Next: import NPS alerts as time-sensitive records without treating cached alerts as current.
+7. Later: add OpenStreetMap/Overpass enrichment for geospatial details only after caching and rate-limit
    rules are in place.
-7. Done: build admin review so imported candidates can be accepted, linked to existing records, ignored,
+8. Done: build admin review so imported candidates can be accepted, linked to existing records, ignored,
    or marked for research.
 
 Good first sources:
@@ -154,6 +185,18 @@ Good first sources:
 
 Mountain Project should be treated as a curated outbound link source instead of an import dependency.
 Its old public data API is deprecated, and guidebook-style route data should remain outside ClimbSite.
+
+## National Park Service Campground Imports
+
+NPS provides official National Park Service campground metadata. It complements RIDB rather than
+overwriting it; candidates from both sources can be linked to one canonical campground during review.
+
+```bash
+corepack pnpm import:nps:campgrounds -- --state TN --limit 50 --max-pages 1
+corepack pnpm import:nps:campgrounds -- --park grsm --limit 50 --max-pages 1
+```
+
+At least one of `--state`, `--park`, or `--query` is required. NPS imports never publish automatically.
 
 ## RIDB Campground Imports
 

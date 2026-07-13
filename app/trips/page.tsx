@@ -4,6 +4,7 @@ import { DeleteTripButton } from "@/components/DeleteTripButton";
 import { getCurrentUser } from "@/lib/auth";
 import { getTripsForUser } from "@/lib/queries";
 import { redirect } from "next/navigation";
+import { formatTripDateRange } from "@/lib/dates";
 
 export default async function TripsPage() {
   const user = await getCurrentUser();
@@ -54,10 +55,17 @@ export default async function TripsPage() {
                   <Route size={14} />
                   {trip.stops.length} stops
                 </span>
-                <span className="pill">
-                  <CalendarDays size={14} />
-                  {trip.updatedAt.toLocaleDateString()}
-                </span>
+                {formatTripDateRange(trip.startDate, trip.endDate) ? (
+                  <span className="pill">
+                    <CalendarDays size={14} />
+                    {formatTripDateRange(trip.startDate, trip.endDate)}
+                  </span>
+                ) : (
+                  <span className="pill">
+                    <CalendarDays size={14} />
+                    Dates not set
+                  </span>
+                )}
               </div>
             </article>
           ))}

@@ -297,6 +297,8 @@ model Trip {
   id        String     @id @default(cuid())
   name      String
   notes     String?
+  startDate DateTime?  @db.Date
+  endDate   DateTime?  @db.Date
   userId    String
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -313,6 +315,7 @@ model TripStop {
   selectedCampgroundId String?
   order          Int
   notes          String?
+  plannedDate    DateTime?    @db.Date
   createdAt      DateTime     @default(now())
   trip           Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
   climbingArea   ClimbingArea @relation(fields: [climbingAreaId], references: [id])

@@ -109,6 +109,25 @@ function parseCoordinate(value: string | number | null | undefined) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function coordinatePair(latValue: string | number | null | undefined, lngValue: string | number | null | undefined) {
+  const lat = parseCoordinate(latValue);
+  const lng = parseCoordinate(lngValue);
+
+  if (
+    lat === null ||
+    lng === null ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180 ||
+    (lat === 0 && lng === 0)
+  ) {
+    return { lat: null, lng: null };
+  }
+
+  return { lat, lng };
+}
+
 function toJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
@@ -246,8 +265,10 @@ async function main() {
           continue;
         }
 
-        const lat = parseCoordinate(facility.FacilityLatitude);
-        const lng = parseCoordinate(facility.FacilityLongitude);
+        const { lat, lng } = coordinatePair(
+          facility.FacilityLatitude,
+          facility.FacilityLongitude
+        );
         const sourceUrl = sourceUrlForFacility(facility);
 
         await prisma.importCandidate.upsert({

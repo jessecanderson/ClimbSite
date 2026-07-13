@@ -6,13 +6,14 @@ import { getAreas, getHubs } from "@/lib/queries";
 export default async function HomePage() {
   const [areas, hubs] = await Promise.all([getAreas(), getHubs()]);
   const mapPoints = areas.flatMap((area) => [
-    { name: area.name, lat: area.lat, lng: area.lng, kind: "area" as const, detail: area.bestFor },
+    { name: area.name, lat: area.lat, lng: area.lng, kind: "area" as const, detail: area.bestFor, href: `/areas/${area.slug}` },
     ...area.campgroundLinks.slice(0, 1).map((link) => ({
       name: link.campground.name,
       lat: link.campground.lat,
       lng: link.campground.lng,
       kind: "campground" as const,
-      detail: `${link.driveMinutes} min from ${area.name}`
+      detail: `${link.driveMinutes} min from ${area.name}`,
+      href: link.campground.reservationUrl ?? undefined
     }))
   ]);
 
