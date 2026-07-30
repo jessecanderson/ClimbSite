@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 const ridbBaseUrl = "https://ridb.recreation.gov/api/v1";
 const defaultActivityIds = ["7", "100041", "100040", "100035"];
 
-type CliOptions = {
+export type RidbClimbingAreaImportOptions = {
   state?: string;
   activityIds: string[];
   limit: number;
@@ -57,8 +57,8 @@ type RidbResponse = {
   };
 };
 
-function parseArgs(argv: string[]): CliOptions {
-  const options: CliOptions = {
+function parseArgs(argv: string[]): RidbClimbingAreaImportOptions {
+  const options: RidbClimbingAreaImportOptions = {
     activityIds: defaultActivityIds,
     limit: 50,
     offset: 0,
@@ -202,7 +202,7 @@ function mappedPayloadForRecArea(recArea: RidbRecArea): Prisma.InputJsonObject {
   };
 }
 
-async function fetchRecAreas(options: CliOptions, activityId: string, offset: number, apiKey: string) {
+async function fetchRecAreas(options: RidbClimbingAreaImportOptions, activityId: string, offset: number, apiKey: string) {
   const url = new URL(`${ridbBaseUrl}/recareas`);
   url.searchParams.set("activity", activityId);
   url.searchParams.set("limit", String(options.limit));
@@ -228,14 +228,13 @@ async function fetchRecAreas(options: CliOptions, activityId: string, offset: nu
   return (await response.json()) as RidbResponse;
 }
 
-async function main() {
+export async function runRidbClimbingAreaImport(options: RidbClimbingAreaImportOptions) {
   const apiKey = process.env.RIDB_API_KEY;
 
   if (!apiKey) {
     throw new Error("RIDB_API_KEY is required. Register for a key at https://ridb.recreation.gov/.");
   }
 
-  const options = parseArgs(process.argv.slice(2));
   const source = await prisma.dataSource.upsert({
     where: { key: "ridb" },
     update: {
@@ -361,6 +360,7 @@ async function main() {
     console.log(
       `RIDB climbing-area import complete: fetched=${fetchedCount} candidates=${candidateCount} skipped=${skippedCount}`
     );
+    return { runId: run.id, fetchedCount, candidateCount, skippedCount };
   } catch (error) {
     await prisma.importRun.update({
       where: { id: run.id },
@@ -378,7 +378,7 @@ async function main() {
   }
 }
 
-main()
+if (process.argv[1]?.includes("import-ridb-climbing-areas")) runRidbClimbingAreaImport(parseArgs(process.argv.slice(2)))
   .catch((error) => {
     console.error(error);
     process.exitCode = 1;
