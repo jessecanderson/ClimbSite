@@ -9,7 +9,8 @@ import { prisma } from "@/lib/prisma";
 
 const providers: NextAuthConfig["providers"] = [];
 const emailFallbackEnabled =
-  process.env.NODE_ENV !== "production" && process.env.AUTH_EMAIL_FALLBACK !== "false";
+  process.env.AUTH_EMAIL_FALLBACK === "true" ||
+  (process.env.NODE_ENV !== "production" && process.env.AUTH_EMAIL_FALLBACK !== "false");
 
 if (emailFallbackEnabled) {
   providers.push(

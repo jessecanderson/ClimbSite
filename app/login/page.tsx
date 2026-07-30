@@ -17,7 +17,8 @@ export default async function LoginPage({
   const redirectTo = safeCallbackUrl(callbackUrl);
   const magicLinkEnabled = Boolean(process.env.AUTH_RESEND_KEY && process.env.AUTH_EMAIL_FROM);
   const emailFallbackEnabled =
-    process.env.NODE_ENV !== "production" && process.env.AUTH_EMAIL_FALLBACK !== "false";
+    process.env.AUTH_EMAIL_FALLBACK === "true" ||
+    (process.env.NODE_ENV !== "production" && process.env.AUTH_EMAIL_FALLBACK !== "false");
   const emailEnabled = magicLinkEnabled || emailFallbackEnabled;
   const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
   const appleEnabled = Boolean(process.env.AUTH_APPLE_ID && process.env.AUTH_APPLE_SECRET);

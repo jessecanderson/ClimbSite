@@ -74,7 +74,9 @@ NPS_API_KEY=""
 
 `AUTH_SECRET` is required in production. Local development has a fallback secret so pages can render
 before credentials are configured, but real deployments should always set a generated secret.
-`AUTH_EMAIL_FALLBACK` should be `true` only for local development or private testing.
+`AUTH_EMAIL_FALLBACK` should be `true` only for local development or private testing. It is
+disabled by default in production, but an explicit production value of `true` enables it for a
+controlled tester deployment.
 
 Auth providers are enabled only when their env vars are present:
 
