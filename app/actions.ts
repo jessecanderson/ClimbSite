@@ -7,7 +7,7 @@ import { signIn, signOut } from "@/auth";
 import { requireAdmin } from "@/lib/admin";
 import { getCurrentUser } from "@/lib/auth";
 import { parseDateInput } from "@/lib/dates";
-import { importHierarchy, suggestedImportTarget } from "@/lib/import-matching";
+import { importHierarchy, isImportCandidateInScope, suggestedImportTarget } from "@/lib/import-matching";
 import { prisma } from "@/lib/prisma";
 
 const emailSchema = z.string().email();
@@ -483,8 +483,7 @@ export async function linkImportCandidateAction(formData: FormData) {
   revalidatePath("/admin/imports");
 }
 
-export async function autoLinkImportCandidatesAction() {
-  await requireAdmin();
+async function autoLinkPendingImportCandidates() {
   const [candidates, references, campgrounds, climbingAreas] = await Promise.all([
     prisma.importCandidate.findMany({ where: { status: "PENDING" } }),
     prisma.externalReference.findMany(),
@@ -551,6 +550,12 @@ export async function autoLinkImportCandidatesAction() {
     }
   });
 
+  return matches.length;
+}
+
+export async function autoLinkImportCandidatesAction() {
+  await requireAdmin();
+  await autoLinkPendingImportCandidates();
   revalidatePath("/admin/imports");
 }
 
@@ -692,8 +697,7 @@ export async function acceptImportCandidateAction(formData: FormData) {
   revalidatePath("/hubs");
 }
 
-export async function createStandaloneImportDraftsAction() {
-  await requireAdmin();
+async function createStandaloneImportDrafts(limit = 20) {
   const [candidates, references, campgrounds, climbingAreas] = await Promise.all([
     prisma.importCandidate.findMany({ where: { status: "PENDING" } }),
     prisma.externalReference.findMany(),
@@ -707,6 +711,7 @@ export async function createStandaloneImportDraftsAction() {
   );
   const safeCandidates = candidates.filter((candidate) => {
     if (candidate.lat === null || candidate.lng === null) return false;
+    if (!isImportCandidateInScope(candidate)) return false;
     if (candidate.entityType === "CLIMBING_AREA" && importHierarchy(candidate.mappedPayload).parentName) {
       return false;
     }
@@ -719,9 +724,40 @@ export async function createStandaloneImportDraftsAction() {
     );
   });
 
-  for (const candidate of safeCandidates.slice(0, 20)) {
+  for (const candidate of safeCandidates.slice(0, limit)) {
     await acceptImportCandidateAsDraft(candidate.id);
   }
+
+  return Math.min(safeCandidates.length, limit);
+}
+
+export async function createStandaloneImportDraftsAction() {
+  await requireAdmin();
+  await createStandaloneImportDrafts();
+
+  revalidatePath("/admin/imports");
+  revalidatePath("/admin/content");
+  revalidatePath("/areas");
+  revalidatePath("/hubs");
+}
+
+export async function processImportCandidatesAction() {
+  await requireAdmin();
+  const pending = await prisma.importCandidate.findMany({ where: { status: "PENDING" } });
+  const outOfScopeIds = pending
+    .filter((candidate) => !isImportCandidateInScope(candidate))
+    .map((candidate) => candidate.id);
+
+  if (outOfScopeIds.length) {
+    await prisma.importCandidate.updateMany({
+      where: { id: { in: outOfScopeIds }, status: "PENDING" },
+      data: { status: "IGNORED" }
+    });
+  }
+
+  await autoLinkPendingImportCandidates();
+  await createStandaloneImportDrafts(Number.POSITIVE_INFINITY);
+  await autoLinkPendingImportCandidates();
 
   revalidatePath("/admin/imports");
   revalidatePath("/admin/content");

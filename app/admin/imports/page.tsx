@@ -2,14 +2,13 @@ import Link from "next/link";
 import { CheckCircle2, Database, ExternalLink, FileSearch, Link2, RotateCw, Search, XCircle } from "lucide-react";
 import {
   acceptImportCandidateAction,
-  autoLinkImportCandidatesAction,
-  createStandaloneImportDraftsAction,
   linkImportCandidateAction,
+  processImportCandidatesAction,
   undoAcceptImportCandidateAction,
   updateImportCandidateStatusAction
 } from "@/app/actions";
 import { requireAdmin } from "@/lib/admin";
-import { importHierarchy, suggestedImportTarget } from "@/lib/import-matching";
+import { importHierarchy, isImportCandidateInScope, suggestedImportTarget } from "@/lib/import-matching";
 import { prisma } from "@/lib/prisma";
 import type { ImportCandidateStatus, ImportEntityType, Prisma } from "@prisma/client";
 
@@ -21,6 +20,8 @@ const statusOptions: ImportCandidateStatus[] = [
   "ACCEPTED"
 ];
 const entityOptions: ImportEntityType[] = ["CAMPGROUND", "CLIMBING_AREA"];
+
+export const maxDuration = 60;
 
 function selectedOption<T extends string>(value: string | string[] | undefined, options: T[], fallback: T | "ALL") {
   const candidate = Array.isArray(value) ? value[0] : value;
@@ -72,6 +73,7 @@ export default async function AdminImportsPage({
       .map((reference) => `${reference.sourceId}:${reference.entityType}:${reference.externalId}`)
   );
   const autoLinkCount = pendingForMatching.filter((candidate) => {
+    if (!isImportCandidateInScope(candidate)) return false;
     if (referenceKeys.has(`${candidate.sourceId}:${candidate.entityType}:${candidate.externalId}`)) return true;
     return Boolean(
       suggestedImportTarget(
@@ -82,6 +84,7 @@ export default async function AdminImportsPage({
   }).length;
   const standaloneDraftCount = pendingForMatching.filter((candidate) => {
     if (candidate.lat === null || candidate.lng === null) return false;
+    if (!isImportCandidateInScope(candidate)) return false;
     if (candidate.entityType === "CLIMBING_AREA" && importHierarchy(candidate.mappedPayload).parentName) {
       return false;
     }
@@ -93,6 +96,9 @@ export default async function AdminImportsPage({
       candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
     );
   }).length;
+  const outOfScopeCount = pendingForMatching.filter(
+    (candidate) => !isImportCandidateInScope(candidate)
+  ).length;
 
   return (
     <main className="page">
@@ -144,26 +150,25 @@ export default async function AdminImportsPage({
         </div>
         <div className="card import-automation">
           <div>
-            <h3>Safe automatic matches</h3>
+            <h3>Process this import batch</h3>
             <p>
-              {autoLinkCount} pending candidates match an existing record by source ID, one unique
-              nearby name, or a named nearby parent. Ambiguous and distant records are left untouched.
+              Use deterministic IDs, geography, names, coordinates, and source hierarchy to process
+              the safe cases. Only unresolved exceptions remain for manual review.
             </p>
+            <div className="meta-row import-automation-summary">
+              <span className="pill">{autoLinkCount} ready to link</span>
+              <span className="pill">{standaloneDraftCount} standalone drafts</span>
+              <span className="pill">{outOfScopeCount} outside project scope</span>
+            </div>
           </div>
           <div className="import-automation-actions">
-            <form action={autoLinkImportCandidatesAction}>
-              <button className="button" type="submit" disabled={autoLinkCount === 0}>
-                <Link2 size={17} />
-                Auto-link {autoLinkCount} safe {autoLinkCount === 1 ? "match" : "matches"}
-              </button>
-            </form>
-            <form action={createStandaloneImportDraftsAction}>
-              <button className="ghost-button" type="submit" disabled={autoLinkCount > 0 || standaloneDraftCount === 0}>
+            <form action={processImportCandidatesAction}>
+              <button className="button" type="submit" disabled={pendingForMatching.length === 0}>
                 <CheckCircle2 size={17} />
-                Create next {Math.min(20, standaloneDraftCount)} of {standaloneDraftCount} drafts
+                Process safe imports
               </button>
             </form>
-            {autoLinkCount > 0 ? <small>Auto-link matches before creating new drafts.</small> : null}
+            <small>Nothing is published automatically.</small>
           </div>
         </div>
       </section>
