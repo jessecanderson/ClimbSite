@@ -904,6 +904,12 @@ function revalidatePublicContent() {
   revalidatePath("/trips");
 }
 
+function editorialErrorRedirect(type: "area" | "campground" | "link", error: string, id?: string) {
+  const params = new URLSearchParams({ type, status: "needs_review", error });
+  if (id) params.set("errorId", id);
+  redirect(`/admin/content?${params.toString()}`);
+}
+
 export async function saveAreaContentAction(formData: FormData) {
   await requireAdmin();
   const id = z.string().cuid().optional().parse(formData.get("id") || undefined);
@@ -938,10 +944,10 @@ export async function saveAreaContentAction(formData: FormData) {
 
   if (intent === "publish") {
     if (hasEditorialPlaceholders([summary, bestFor, approach, parking, roadDifficulty])) {
-      redirect("/admin/content?type=area&status=needs_review&error=placeholder");
+      editorialErrorRedirect("area", "placeholder", id);
     }
     if (!sourceUrl) {
-      redirect("/admin/content?type=area&status=needs_review&error=source-required");
+      editorialErrorRedirect("area", "source-required", id);
     }
   }
 
@@ -993,10 +999,10 @@ export async function saveCampgroundContentAction(formData: FormData) {
 
   if (intent === "publish") {
     if (hasEditorialPlaceholders([summary, amenities, campingFit])) {
-      redirect("/admin/content?type=campground&status=needs_review&error=placeholder");
+      editorialErrorRedirect("campground", "placeholder", id);
     }
     if (!sourceUrl && !reservationUrl) {
-      redirect("/admin/content?type=campground&status=needs_review&error=source-required");
+      editorialErrorRedirect("campground", "source-required", id);
     }
   }
 
@@ -1029,6 +1035,7 @@ export async function saveCampgroundContentAction(formData: FormData) {
 }
 
 export async function saveAreaCampgroundLinkAction(formData: FormData) {
+  const id = z.string().cuid().optional().parse(formData.get("id") || undefined);
   await requireAdmin();
   const climbingAreaId = z.string().cuid().parse(formData.get("climbingAreaId"));
   const campgroundId = z.string().cuid().parse(formData.get("campgroundId"));
@@ -1040,14 +1047,14 @@ export async function saveAreaCampgroundLinkAction(formData: FormData) {
 
   if (intent === "publish") {
     if (hasEditorialPlaceholders([logisticsNote])) {
-      redirect("/admin/content?type=link&status=needs_review&error=placeholder");
+      editorialErrorRedirect("link", "placeholder", id);
     }
     const [area, campground] = await Promise.all([
       prisma.climbingArea.findUnique({ where: { id: climbingAreaId }, select: { reviewStatus: true } }),
       prisma.campground.findUnique({ where: { id: campgroundId }, select: { reviewStatus: true } })
     ]);
     if (area?.reviewStatus !== "reviewed" || campground?.reviewStatus !== "reviewed") {
-      redirect("/admin/content?type=link&status=needs_review&error=endpoints-not-reviewed");
+      editorialErrorRedirect("link", "endpoints-not-reviewed", id);
     }
   }
 
