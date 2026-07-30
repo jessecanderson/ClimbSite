@@ -4,6 +4,8 @@ export type MatchCandidate = {
   normalizedName: string;
   lat: number | null;
   lng: number | null;
+  mappedPayload?: unknown;
+  region?: string | null;
 };
 
 export type MatchTarget = {
@@ -12,6 +14,17 @@ export type MatchTarget = {
   lat: number;
   lng: number;
 };
+
+const inScopeRegions = new Set([
+  "AL", "Alabama",
+  "GA", "Georgia",
+  "KY", "Kentucky",
+  "NC", "North Carolina",
+  "SC", "South Carolina",
+  "TN", "Tennessee",
+  "VA", "Virginia",
+  "WV", "West Virginia"
+]);
 
 export function normalizeImportName(value: string) {
   return value
@@ -48,13 +61,39 @@ export function suggestedImportTarget(candidate: MatchCandidate, targets: MatchT
     (target) => normalizeImportName(target.name) === candidateName
   );
 
-  if (sameNameTargets.length !== 1) return null;
-
-  const target = sameNameTargets[0];
-  const distanceKm = distanceKilometers(candidate.lat, candidate.lng, target.lat, target.lng);
   const maximumDistanceKm = candidate.entityType === "CLIMBING_AREA" ? 15 : 5;
 
-  return distanceKm <= maximumDistanceKm ? { target, distanceKm } : null;
+  if (sameNameTargets.length === 1) {
+    const target = sameNameTargets[0];
+    const distanceKm = distanceKilometers(candidate.lat, candidate.lng, target.lat, target.lng);
+
+    if (distanceKm <= maximumDistanceKm) {
+      return { target, distanceKm, reason: "direct" as const };
+    }
+  }
+
+  if (candidate.entityType === "CLIMBING_AREA" && isImportCandidateInScope(candidate)) {
+    const { pathTokens } = importHierarchy(candidate.mappedPayload);
+    const ancestorNames = pathTokens.slice(0, -1).map(normalizeImportName);
+    const ancestorTargets = targets
+      .flatMap((target) => {
+        const depth = ancestorNames.lastIndexOf(normalizeImportName(target.name));
+        if (depth < 0) return [];
+        const distanceKm = distanceKilometers(candidate.lat!, candidate.lng!, target.lat, target.lng);
+        return distanceKm <= 25 ? [{ target, distanceKm, depth }] : [];
+      })
+      .sort((left, right) => right.depth - left.depth);
+
+    if (
+      ancestorTargets.length > 0 &&
+      ancestorTargets.filter((match) => match.depth === ancestorTargets[0].depth).length === 1
+    ) {
+      const { target, distanceKm } = ancestorTargets[0];
+      return { target, distanceKm, reason: "parent" as const };
+    }
+  }
+
+  return null;
 }
 
 export function importHierarchy(mappedPayload: unknown) {
@@ -72,4 +111,11 @@ export function importHierarchy(mappedPayload: unknown) {
     : [];
 
   return { parentName, pathTokens };
+}
+
+export function isImportCandidateInScope(candidate: Pick<MatchCandidate, "mappedPayload" | "region">) {
+  const { pathTokens } = importHierarchy(candidate.mappedPayload);
+  const region = pathTokens[1] ?? candidate.region?.split(",")[0]?.trim();
+
+  return region ? inScopeRegions.has(region) : true;
 }
