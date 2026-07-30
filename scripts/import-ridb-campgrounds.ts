@@ -146,17 +146,13 @@ function sourceUrlForFacility(facility: RidbFacility) {
 }
 
 function looksLikeCampground(facility: RidbFacility) {
-  const haystack = [
-    facility.FacilityName,
-    facility.FacilityTypeDescription,
-    facility.FacilityDescription,
-    facility.Keywords
-  ]
+  const identity = [facility.FacilityName, facility.FacilityTypeDescription, facility.Keywords]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
 
-  return haystack.includes("campground") || haystack.includes("camping");
+  const excluded = /boat launch|day use|visitor center|trailhead|picnic|parking|marina/.test(identity);
+  return !excluded && /campground|camping|campsite/.test(identity);
 }
 
 function mappedPayloadForFacility(facility: RidbFacility): Prisma.InputJsonObject {

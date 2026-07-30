@@ -21,28 +21,38 @@ function reviewFilter(value?: string): ReviewFilter {
   return value === "reviewed" || value === "all" ? value : "needs_review";
 }
 
-function EditorialButtons({ reviewed }: { reviewed: boolean }) {
+function editorialErrorMessage(error?: string) {
+  return error === "placeholder"
+    ? "Replace all imported placeholder text before publishing."
+    : error === "source-required"
+      ? "Add an authoritative source or reservation URL before publishing."
+      : error === "endpoints-not-reviewed"
+        ? "Publish both the climbing area and campground before publishing their logistics relationship."
+        : error
+          ? "The record could not be published. Review its required fields and try again."
+          : null;
+}
+
+function EditorialButtons({ reviewed, error }: { reviewed: boolean; error?: string }) {
   return (
-    <div className="actions">
-      <button className="ghost-button" name="intent" type="submit" value="save">
-        Save changes
-      </button>
-      {reviewed ? (
-        <button
-          className="danger-button"
-          name="intent"
-          type="submit"
-          value="unpublish"
-        >
-          Return to review
+    <>
+      {error ? <p className="form-message form-message-error" role="alert">{editorialErrorMessage(error)}</p> : null}
+      <div className="actions">
+        <button className="ghost-button" name="intent" type="submit" value="save">
+          Save changes
         </button>
-      ) : (
-        <button className="button" name="intent" type="submit" value="publish">
-          <BadgeCheck size={17} />
-          Publish reviewed
-        </button>
-      )}
-    </div>
+        {reviewed ? (
+          <button className="danger-button" name="intent" type="submit" value="unpublish">
+            Return to review
+          </button>
+        ) : (
+          <button className="button" name="intent" type="submit" value="publish">
+            <BadgeCheck size={17} />
+            Publish reviewed
+          </button>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -110,7 +120,7 @@ function CampgroundFields({ campground }: { campground?: Campground }) {
 export default async function AdminContentPage({
   searchParams
 }: {
-  searchParams: Promise<{ type?: string; status?: string; q?: string; notice?: string; error?: string }>;
+  searchParams: Promise<{ type?: string; status?: string; q?: string; notice?: string; error?: string; errorId?: string }>;
 }) {
   await requireAdmin();
   const params = await searchParams;
@@ -164,13 +174,7 @@ export default async function AdminContentPage({
       {params.notice ? <p className="form-message" role="status">Changes saved successfully.</p> : null}
       {params.error ? (
         <p className="form-message form-message-error" role="alert">
-          {params.error === "placeholder"
-            ? "Replace all imported placeholder text before publishing."
-            : params.error === "source-required"
-              ? "Add an authoritative source or reservation URL before publishing."
-              : params.error === "endpoints-not-reviewed"
-                ? "Publish both the climbing area and campground before publishing their logistics relationship."
-                : "The record could not be published. Review its required fields and try again."}
+          {editorialErrorMessage(params.error)}
         </p>
       ) : null}
 
@@ -224,25 +228,25 @@ export default async function AdminContentPage({
 
       <section className="section list">
         {selectedType === "area" && areas.map((area) => (
-          <details className="card editorial-record" key={area.id}>
+          <details className="card editorial-record" key={area.id} open={params.errorId === area.id}>
             <summary><strong>{area.name}</strong><span className="pill">{area.reviewStatus.replace("_", " ")}</span></summary>
             <p>{area.region} · {area.sourceName ?? "No source named"}{area.lastReviewedAt ? ` · Reviewed ${formatTripDate(area.lastReviewedAt)}` : ""}</p>
-            <form className="form" action={saveAreaContentAction}><AreaFields area={area} allAreas={allAreas} /><EditorialButtons reviewed={area.reviewStatus === "reviewed"} /></form>
+            <form className="form" action={saveAreaContentAction}><AreaFields area={area} allAreas={allAreas} /><EditorialButtons reviewed={area.reviewStatus === "reviewed"} error={params.errorId === area.id ? params.error : undefined} /></form>
           </details>
         ))}
         {selectedType === "campground" && campgrounds.map((campground) => (
-          <details className="card editorial-record" key={campground.id}>
+          <details className="card editorial-record" key={campground.id} open={params.errorId === campground.id}>
             <summary><strong>{campground.name}</strong><span className="pill">{campground.reviewStatus.replace("_", " ")}</span></summary>
             <p>{campground.type} · {campground.sourceName ?? "No source named"}{campground.lastReviewedAt ? ` · Reviewed ${formatTripDate(campground.lastReviewedAt)}` : ""}</p>
-            <form className="form" action={saveCampgroundContentAction}><CampgroundFields campground={campground} /><EditorialButtons reviewed={campground.reviewStatus === "reviewed"} /></form>
+            <form className="form" action={saveCampgroundContentAction}><CampgroundFields campground={campground} /><EditorialButtons reviewed={campground.reviewStatus === "reviewed"} error={params.errorId === campground.id ? params.error : undefined} /></form>
           </details>
         ))}
         {selectedType === "link" && links.map((link) => (
-          <details className="card editorial-record" key={link.id}>
+          <details className="card editorial-record" key={link.id} open={params.errorId === link.id}>
             <summary><strong>{link.climbingArea.name} → {link.campground.name}</strong><span className="pill">{link.reviewStatus.replace("_", " ")}</span></summary>
             <form className="form" action={saveAreaCampgroundLinkAction}>
               <LinkFields areas={allAreas} campgrounds={allCampgrounds} link={link} />
-              <EditorialButtons reviewed={link.reviewStatus === "reviewed"} />
+              <EditorialButtons reviewed={link.reviewStatus === "reviewed"} error={params.errorId === link.id ? params.error : undefined} />
             </form>
           </details>
         ))}
@@ -257,6 +261,7 @@ type EditorialLink = AreaCampgroundLink & { climbingArea: ClimbingArea; campgrou
 function LinkFields({ areas, campgrounds, link }: { areas: ClimbingArea[]; campgrounds: Campground[]; link?: EditorialLink }) {
   return (
     <>
+      {link ? <input type="hidden" name="id" value={link.id} /> : null}
       <div className="form-row">
         <label className="field"><span>Climbing area</span><select className="input" name="climbingAreaId" required defaultValue={link?.climbingAreaId}>{areas.map((area) => <option value={area.id} key={area.id}>{area.name} ({area.region})</option>)}</select></label>
         <label className="field"><span>Campground</span><select className="input" name="campgroundId" required defaultValue={link?.campgroundId}>{campgrounds.map((campground) => <option value={campground.id} key={campground.id}>{campground.name}</option>)}</select></label>
