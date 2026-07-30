@@ -6,7 +6,6 @@ import {
   saveAreaContentAction,
   saveCampgroundContentAction
 } from "@/app/actions";
-import { SubmitButton } from "@/components/SubmitButton";
 import { requireAdmin } from "@/lib/admin";
 import { formatTripDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
@@ -25,23 +24,23 @@ function reviewFilter(value?: string): ReviewFilter {
 function EditorialButtons({ reviewed }: { reviewed: boolean }) {
   return (
     <div className="actions">
-      <SubmitButton className="ghost-button" name="intent" value="save" pendingLabel="Saving…">
+      <button className="ghost-button" name="intent" type="submit" value="save">
         Save changes
-      </SubmitButton>
+      </button>
       {reviewed ? (
-        <SubmitButton
+        <button
           className="danger-button"
           name="intent"
+          type="submit"
           value="unpublish"
-          pendingLabel="Updating…"
         >
           Return to review
-        </SubmitButton>
+        </button>
       ) : (
-        <SubmitButton name="intent" value="publish" pendingLabel="Publishing…">
+        <button className="button" name="intent" type="submit" value="publish">
           <BadgeCheck size={17} />
           Publish reviewed
-        </SubmitButton>
+        </button>
       )}
     </div>
   );
