@@ -799,7 +799,7 @@ function revalidatePublicContent() {
 export async function saveAreaContentAction(formData: FormData) {
   await requireAdmin();
   const id = z.string().cuid().optional().parse(formData.get("id") || undefined);
-  const intent = editorialIntentSchema.parse(formData.get("intent"));
+  const intent = editorialIntentSchema.catch("save").parse(formData.get("intent"));
   const name = formText(formData, "name", 120);
   const region = formText(formData, "region", 120);
   const summary = formText(formData, "summary", 2000);
@@ -860,7 +860,7 @@ export async function saveAreaContentAction(formData: FormData) {
 export async function saveCampgroundContentAction(formData: FormData) {
   await requireAdmin();
   const id = z.string().cuid().optional().parse(formData.get("id") || undefined);
-  const intent = editorialIntentSchema.parse(formData.get("intent"));
+  const intent = editorialIntentSchema.catch("save").parse(formData.get("intent"));
   const name = formText(formData, "name", 120);
   const type = formText(formData, "type", 200);
   const summary = formText(formData, "summary", 2000);
@@ -913,7 +913,7 @@ export async function saveAreaCampgroundLinkAction(formData: FormData) {
   await requireAdmin();
   const climbingAreaId = z.string().cuid().parse(formData.get("climbingAreaId"));
   const campgroundId = z.string().cuid().parse(formData.get("campgroundId"));
-  const intent = editorialIntentSchema.parse(formData.get("intent"));
+  const intent = editorialIntentSchema.catch("save").parse(formData.get("intent"));
   const logisticsNote = formText(formData, "logisticsNote", 2000);
   const miles = z.coerce.number().min(0).max(1000).parse(formData.get("miles"));
   const driveMinutes = z.coerce.number().int().min(0).max(1440).parse(formData.get("driveMinutes"));

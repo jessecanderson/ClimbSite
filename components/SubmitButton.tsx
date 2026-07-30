@@ -50,10 +50,15 @@ export function SubmitButton({
 
   return (
     <button
+      aria-busy={pending}
+      aria-disabled={disabled || pending}
       aria-label={ariaLabel}
       className={className}
-      disabled={disabled || pending}
+      disabled={disabled}
       name={name}
+      onClick={(event) => {
+        if (pending) event.preventDefault();
+      }}
       title={title}
       type="submit"
       value={value}
