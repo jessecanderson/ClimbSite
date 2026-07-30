@@ -7,11 +7,12 @@ import { signIn, signOut } from "@/auth";
 import { requireAdmin } from "@/lib/admin";
 import { getCurrentUser } from "@/lib/auth";
 import { parseDateInput } from "@/lib/dates";
+import { importHierarchy, suggestedImportTarget } from "@/lib/import-matching";
 import { prisma } from "@/lib/prisma";
 
 const emailSchema = z.string().email();
 const authProviderSchema = z.enum(["google", "apple"]);
-const candidateStatusSchema = z.enum(["IGNORED", "NEEDS_RESEARCH"]);
+const candidateStatusSchema = z.enum(["PENDING", "IGNORED", "NEEDS_RESEARCH"]);
 const tripSchema = z.object({
   name: z.string().trim().min(1).max(80),
   notes: z.string().trim().max(1000).optional()
@@ -482,25 +483,145 @@ export async function linkImportCandidateAction(formData: FormData) {
   revalidatePath("/admin/imports");
 }
 
-export async function acceptImportCandidateAction(formData: FormData) {
+export async function autoLinkImportCandidatesAction() {
+  await requireAdmin();
+  const [candidates, references, campgrounds, climbingAreas] = await Promise.all([
+    prisma.importCandidate.findMany({ where: { status: "PENDING" } }),
+    prisma.externalReference.findMany(),
+    prisma.campground.findMany({ select: { id: true, name: true, lat: true, lng: true } }),
+    prisma.climbingArea.findMany({ select: { id: true, name: true, lat: true, lng: true } })
+  ]);
+  const referenceByKey = new Map(
+    references.map((reference) => [
+      `${reference.sourceId}:${reference.entityType}:${reference.externalId}`,
+      reference
+    ])
+  );
+  const matches = candidates.flatMap((candidate) => {
+    const reference = referenceByKey.get(
+      `${candidate.sourceId}:${candidate.entityType}:${candidate.externalId}`
+    );
+    const referencedTargetId =
+      candidate.entityType === "CAMPGROUND"
+        ? reference?.campgroundId
+        : reference?.climbingAreaId;
+    const suggested = referencedTargetId
+      ? null
+      : suggestedImportTarget(
+          candidate,
+          candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
+        );
+    const targetId = referencedTargetId ?? suggested?.target.id;
+
+    return targetId ? [{ candidate, targetId }] : [];
+  });
+
+  await prisma.$transaction(async (tx) => {
+    for (const { candidate, targetId } of matches) {
+      await tx.externalReference.upsert({
+        where: {
+          sourceId_entityType_externalId: {
+            sourceId: candidate.sourceId,
+            entityType: candidate.entityType,
+            externalId: candidate.externalId
+          }
+        },
+        update: {
+          sourceUrl: candidate.sourceUrl,
+          campgroundId: candidate.entityType === "CAMPGROUND" ? targetId : null,
+          climbingAreaId: candidate.entityType === "CLIMBING_AREA" ? targetId : null
+        },
+        create: {
+          sourceId: candidate.sourceId,
+          entityType: candidate.entityType,
+          externalId: candidate.externalId,
+          sourceUrl: candidate.sourceUrl,
+          campgroundId: candidate.entityType === "CAMPGROUND" ? targetId : null,
+          climbingAreaId: candidate.entityType === "CLIMBING_AREA" ? targetId : null
+        }
+      });
+      await tx.importCandidate.update({
+        where: { id: candidate.id },
+        data: {
+          status: "LINKED",
+          matchedCampgroundId: candidate.entityType === "CAMPGROUND" ? targetId : null,
+          matchedAreaId: candidate.entityType === "CLIMBING_AREA" ? targetId : null
+        }
+      });
+    }
+  });
+
+  revalidatePath("/admin/imports");
+}
+
+export async function undoAcceptImportCandidateAction(formData: FormData) {
   await requireAdmin();
   const candidateId = z.string().cuid().parse(formData.get("candidateId"));
+
+  await prisma.$transaction(async (tx) => {
+    const candidate = await tx.importCandidate.findUniqueOrThrow({
+      where: { id: candidateId },
+      include: {
+        matchedArea: { include: { _count: { select: { hubLinks: true, campgroundLinks: true, tripStops: true } } } },
+        matchedCampground: { include: { _count: { select: { hubLinks: true, areaLinks: true, selectedStops: true } } } }
+      }
+    });
+
+    if (candidate.status !== "ACCEPTED") throw new Error("Only accepted drafts can be undone.");
+
+    if (candidate.matchedArea) {
+      const area = candidate.matchedArea;
+      const hasDependencies = area._count.hubLinks + area._count.campgroundLinks + area._count.tripStops > 0;
+      const wasEdited = area.updatedAt.getTime() - area.createdAt.getTime() > 1000;
+      if (area.sourceType !== "imported" || area.reviewStatus !== "needs_review" || hasDependencies || wasEdited) {
+        throw new Error("This draft has been edited or linked and can no longer be safely undone.");
+      }
+      await tx.importCandidate.update({ where: { id: candidate.id }, data: { status: "PENDING", matchedAreaId: null } });
+      await tx.climbingArea.delete({ where: { id: area.id } });
+    } else if (candidate.matchedCampground) {
+      const campground = candidate.matchedCampground;
+      const hasDependencies = campground._count.hubLinks + campground._count.areaLinks + campground._count.selectedStops > 0;
+      const wasEdited = campground.updatedAt.getTime() - campground.createdAt.getTime() > 1000;
+      if (campground.sourceType !== "imported" || campground.reviewStatus !== "needs_review" || hasDependencies || wasEdited) {
+        throw new Error("This draft has been edited or linked and can no longer be safely undone.");
+      }
+      await tx.importCandidate.update({ where: { id: candidate.id }, data: { status: "PENDING", matchedCampgroundId: null } });
+      await tx.campground.delete({ where: { id: campground.id } });
+    } else {
+      throw new Error("The accepted draft is missing its target record.");
+    }
+  });
+
+  revalidatePath("/admin/imports");
+  revalidatePath("/admin/content");
+}
+
+async function acceptImportCandidateAsDraft(candidateId: string) {
   const candidate = await prisma.importCandidate.findUniqueOrThrow({
     where: { id: candidateId }
   });
+
+  if (candidate.status !== "PENDING") return;
 
   if (candidate.lat === null || candidate.lng === null) {
     await prisma.importCandidate.update({
       where: { id: candidateId },
       data: { status: "NEEDS_RESEARCH" }
     });
-    revalidatePath("/admin/imports");
     return;
   }
 
   const mapped = mappedObject(candidate.mappedPayload);
   const sourceName = optionalString(mapped.sourceName, "Imported source");
   const sourceUrl = optionalString(mapped.sourceUrl, candidate.sourceUrl ?? "");
+
+  if (candidate.entityType === "CLIMBING_AREA" && importHierarchy(mapped).parentName) {
+    await prisma.importCandidate.update({
+      where: { id: candidateId },
+      data: { status: "NEEDS_RESEARCH" }
+    });
+    return;
+  }
 
   if (candidate.entityType === "CAMPGROUND") {
     const campground = await prisma.campground.create({
@@ -560,7 +681,50 @@ export async function acceptImportCandidateAction(formData: FormData) {
     });
   }
 
+}
+
+export async function acceptImportCandidateAction(formData: FormData) {
+  await requireAdmin();
+  const candidateId = z.string().cuid().parse(formData.get("candidateId"));
+  await acceptImportCandidateAsDraft(candidateId);
   revalidatePath("/admin/imports");
+  revalidatePath("/areas");
+  revalidatePath("/hubs");
+}
+
+export async function createStandaloneImportDraftsAction() {
+  await requireAdmin();
+  const [candidates, references, campgrounds, climbingAreas] = await Promise.all([
+    prisma.importCandidate.findMany({ where: { status: "PENDING" } }),
+    prisma.externalReference.findMany(),
+    prisma.campground.findMany({ select: { id: true, name: true, lat: true, lng: true } }),
+    prisma.climbingArea.findMany({ select: { id: true, name: true, lat: true, lng: true } })
+  ]);
+  const referenceKeys = new Set(
+    references
+      .filter((reference) => reference.campgroundId || reference.climbingAreaId)
+      .map((reference) => `${reference.sourceId}:${reference.entityType}:${reference.externalId}`)
+  );
+  const safeCandidates = candidates.filter((candidate) => {
+    if (candidate.lat === null || candidate.lng === null) return false;
+    if (candidate.entityType === "CLIMBING_AREA" && importHierarchy(candidate.mappedPayload).parentName) {
+      return false;
+    }
+    if (referenceKeys.has(`${candidate.sourceId}:${candidate.entityType}:${candidate.externalId}`)) {
+      return false;
+    }
+    return !suggestedImportTarget(
+      candidate,
+      candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
+    );
+  });
+
+  for (const candidate of safeCandidates.slice(0, 20)) {
+    await acceptImportCandidateAsDraft(candidate.id);
+  }
+
+  revalidatePath("/admin/imports");
+  revalidatePath("/admin/content");
   revalidatePath("/areas");
   revalidatePath("/hubs");
 }

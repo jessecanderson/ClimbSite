@@ -2,10 +2,14 @@ import Link from "next/link";
 import { CheckCircle2, Database, ExternalLink, FileSearch, Link2, RotateCw, Search, XCircle } from "lucide-react";
 import {
   acceptImportCandidateAction,
+  autoLinkImportCandidatesAction,
+  createStandaloneImportDraftsAction,
   linkImportCandidateAction,
+  undoAcceptImportCandidateAction,
   updateImportCandidateStatusAction
 } from "@/app/actions";
 import { requireAdmin } from "@/lib/admin";
+import { importHierarchy, suggestedImportTarget } from "@/lib/import-matching";
 import { prisma } from "@/lib/prisma";
 import type { ImportCandidateStatus, ImportEntityType, Prisma } from "@prisma/client";
 
@@ -37,7 +41,7 @@ export default async function AdminImportsPage({
     ...(selectedEntity === "ALL" ? {} : { entityType: selectedEntity })
   };
 
-  const [runs, candidates, campgrounds, climbingAreas] = await Promise.all([
+  const [runs, candidates, campgrounds, climbingAreas, pendingForMatching, references] = await Promise.all([
     prisma.importRun.findMany({
       orderBy: { startedAt: "desc" },
       take: 10,
@@ -47,17 +51,48 @@ export default async function AdminImportsPage({
       where: candidateWhere,
       orderBy: { updatedAt: "desc" },
       take: 25,
-      include: { source: true }
+      include: { source: true, matchedArea: true, matchedCampground: true }
     }),
     prisma.campground.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true }
+      select: { id: true, name: true, lat: true, lng: true }
     }),
     prisma.climbingArea.findMany({
       orderBy: [{ region: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, region: true }
+      select: { id: true, name: true, region: true, lat: true, lng: true }
+    }),
+    prisma.importCandidate.findMany({ where: { status: "PENDING" } }),
+    prisma.externalReference.findMany({
+      select: { sourceId: true, entityType: true, externalId: true, campgroundId: true, climbingAreaId: true }
     })
   ]);
+  const referenceKeys = new Set(
+    references
+      .filter((reference) => reference.campgroundId || reference.climbingAreaId)
+      .map((reference) => `${reference.sourceId}:${reference.entityType}:${reference.externalId}`)
+  );
+  const autoLinkCount = pendingForMatching.filter((candidate) => {
+    if (referenceKeys.has(`${candidate.sourceId}:${candidate.entityType}:${candidate.externalId}`)) return true;
+    return Boolean(
+      suggestedImportTarget(
+        candidate,
+        candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
+      )
+    );
+  }).length;
+  const standaloneDraftCount = pendingForMatching.filter((candidate) => {
+    if (candidate.lat === null || candidate.lng === null) return false;
+    if (candidate.entityType === "CLIMBING_AREA" && importHierarchy(candidate.mappedPayload).parentName) {
+      return false;
+    }
+    if (referenceKeys.has(`${candidate.sourceId}:${candidate.entityType}:${candidate.externalId}`)) {
+      return false;
+    }
+    return !suggestedImportTarget(
+      candidate,
+      candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
+    );
+  }).length;
 
   return (
     <main className="page">
@@ -102,10 +137,34 @@ export default async function AdminImportsPage({
             <FileSearch color="#c28b31" />
             <h3>Review actions</h3>
             <p>
-              Accept new records as needs-review imports, link candidates to existing records, or
-              move low-confidence records to research or ignored.
+              Auto-link high-confidence matches, create unpublished standalone drafts, and hold
+              ambiguous hierarchy records for research.
             </p>
           </article>
+        </div>
+        <div className="card import-automation">
+          <div>
+            <h3>Safe automatic matches</h3>
+            <p>
+              {autoLinkCount} pending candidates match an existing record by source ID or by one
+              unique nearby name. Ambiguous and distant same-name records are left untouched.
+            </p>
+          </div>
+          <div className="import-automation-actions">
+            <form action={autoLinkImportCandidatesAction}>
+              <button className="button" type="submit" disabled={autoLinkCount === 0}>
+                <Link2 size={17} />
+                Auto-link {autoLinkCount} safe {autoLinkCount === 1 ? "match" : "matches"}
+              </button>
+            </form>
+            <form action={createStandaloneImportDraftsAction}>
+              <button className="ghost-button" type="submit" disabled={autoLinkCount > 0 || standaloneDraftCount === 0}>
+                <CheckCircle2 size={17} />
+                Create next {Math.min(20, standaloneDraftCount)} of {standaloneDraftCount} drafts
+              </button>
+            </form>
+            {autoLinkCount > 0 ? <small>Auto-link matches before creating new drafts.</small> : null}
+          </div>
         </div>
       </section>
 
@@ -154,7 +213,7 @@ export default async function AdminImportsPage({
           </div>
         </div>
         <div className="actions">
-          {(["PENDING", "NEEDS_RESEARCH", "ALL"] as const).map((status) => (
+          {(["PENDING", "NEEDS_RESEARCH", "ACCEPTED", "LINKED", "IGNORED", "ALL"] as const).map((status) => (
             <Link
               className={selectedStatus === status ? "button" : "ghost-button"}
               href={`/admin/imports?status=${status}&entity=${selectedEntity}`}
@@ -177,7 +236,16 @@ export default async function AdminImportsPage({
           {candidates.length === 0 ? (
             <div className="empty">No import candidates match these filters.</div>
           ) : (
-            candidates.map((candidate) => (
+            candidates.map((candidate) => {
+              const hierarchy = importHierarchy(candidate.mappedPayload);
+              const suggestion = suggestedImportTarget(
+                candidate,
+                candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
+              );
+              const canCreateStandalone =
+                candidate.entityType === "CAMPGROUND" || hierarchy.parentName === null;
+
+              return (
               <article className="card" key={candidate.id}>
                 <div className="meta-row">
                   <span className="pill">{candidate.source.name}</span>
@@ -187,6 +255,15 @@ export default async function AdminImportsPage({
                   <span className="pill">{candidate.region ?? "No region"}</span>
                 </div>
                 <h3>{candidate.name}</h3>
+                {hierarchy.pathTokens.length ? (
+                  <p className="import-path">Source hierarchy: {hierarchy.pathTokens.join(" → ")}</p>
+                ) : null}
+                {hierarchy.parentName ? (
+                  <p className="form-message form-message-warning">
+                    Subarea of <strong>{hierarchy.parentName}</strong>. Keep this out of the
+                    standalone-area queue until hierarchy support is available.
+                  </p>
+                ) : null}
                 <p>
                   {candidate.lat && candidate.lng
                     ? `${candidate.lat.toFixed(4)}, ${candidate.lng.toFixed(4)}`
@@ -199,20 +276,38 @@ export default async function AdminImportsPage({
                       Source details
                     </Link>
                   ) : null}
-                  <form action={acceptImportCandidateAction}>
-                    <input type="hidden" name="candidateId" value={candidate.id} />
-                    <button className="button" type="submit">
-                      <CheckCircle2 size={17} />
-                      Accept as new
-                    </button>
-                  </form>
+                  {candidate.status === "PENDING" && suggestion ? (
+                    <form action={linkImportCandidateAction}>
+                      <input type="hidden" name="candidateId" value={candidate.id} />
+                      <input type="hidden" name="targetId" value={suggestion.target.id} />
+                      <button className="button" type="submit">
+                        <Link2 size={17} />
+                        Link to {suggestion.target.name} ({suggestion.distanceKm.toFixed(1)} km)
+                      </button>
+                    </form>
+                  ) : candidate.status === "PENDING" && canCreateStandalone ? (
+                    <form action={acceptImportCandidateAction}>
+                      <input type="hidden" name="candidateId" value={candidate.id} />
+                      <button className="button" type="submit">
+                        <CheckCircle2 size={17} />
+                        Create unpublished draft
+                      </button>
+                    </form>
+                  ) : null}
+                  {candidate.status === "ACCEPTED" ? (
+                    <form action={undoAcceptImportCandidateAction}>
+                      <input type="hidden" name="candidateId" value={candidate.id} />
+                      <button className="ghost-button" type="submit">Undo draft creation</button>
+                    </form>
+                  ) : null}
                 </div>
 
-                <form className="form compact-form" action={linkImportCandidateAction}>
+                {candidate.status === "PENDING" ? <form className="form compact-form" action={linkImportCandidateAction}>
                   <input type="hidden" name="candidateId" value={candidate.id} />
                   <label className="field">
                     <span>Link to existing {candidate.entityType === "CAMPGROUND" ? "campground" : "area"}</span>
                     <select className="input" name="targetId" required>
+                      <option value="">Choose an existing record…</option>
                       {(candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas).map((item) => (
                         <option value={item.id} key={item.id}>
                           {"region" in item ? `${item.name} (${item.region})` : item.name}
@@ -224,17 +319,21 @@ export default async function AdminImportsPage({
                     <Link2 size={17} />
                     Link reference
                   </button>
-                </form>
+                </form> : null}
 
-                <div className="actions">
-                  <form action={updateImportCandidateStatusAction}>
+                {candidate.status === "PENDING" || candidate.status === "NEEDS_RESEARCH" ? <div className="actions">
+                  {candidate.status === "PENDING" ? <form action={updateImportCandidateStatusAction}>
                     <input type="hidden" name="candidateId" value={candidate.id} />
                     <input type="hidden" name="status" value="NEEDS_RESEARCH" />
                     <button className="ghost-button" type="submit">
                       <Search size={17} />
                       Needs research
                     </button>
-                  </form>
+                  </form> : <form action={updateImportCandidateStatusAction}>
+                    <input type="hidden" name="candidateId" value={candidate.id} />
+                    <input type="hidden" name="status" value="PENDING" />
+                    <button className="ghost-button" type="submit">Return to pending</button>
+                  </form>}
                   <form action={updateImportCandidateStatusAction}>
                     <input type="hidden" name="candidateId" value={candidate.id} />
                     <input type="hidden" name="status" value="IGNORED" />
@@ -243,9 +342,10 @@ export default async function AdminImportsPage({
                       Ignore
                     </button>
                   </form>
-                </div>
+                </div> : null}
               </article>
-            ))
+              );
+            })
           )}
         </div>
       </section>
