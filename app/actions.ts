@@ -556,7 +556,7 @@ async function autoLinkPendingImportCandidates() {
           candidate,
           candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
         );
-    const targetId = referencedTargetId ?? suggested?.target.id;
+    const targetId = referencedTargetId ?? (suggested?.reason === "direct" ? suggested.target.id : null);
 
     return targetId ? [{ candidate, targetId }] : [];
   });
@@ -666,12 +666,21 @@ async function acceptImportCandidateAsDraft(candidateId: string) {
   const sourceName = optionalString(mapped.sourceName, "Imported source");
   const sourceUrl = optionalString(mapped.sourceUrl, candidate.sourceUrl ?? "");
 
+  let parentAreaId: string | null = null;
   if (candidate.entityType === "CLIMBING_AREA" && importHierarchy(mapped).parentName) {
-    await prisma.importCandidate.update({
-      where: { id: candidateId },
-      data: { status: "NEEDS_RESEARCH" }
+    const areas = await prisma.climbingArea.findMany({
+      where: { parentAreaId: null },
+      select: { id: true, name: true, lat: true, lng: true }
     });
-    return;
+    const parentMatch = suggestedImportTarget(candidate, areas);
+    if (parentMatch?.reason !== "parent") {
+      await prisma.importCandidate.update({
+        where: { id: candidateId },
+        data: { status: "NEEDS_RESEARCH" }
+      });
+      return;
+    }
+    parentAreaId = parentMatch.target.id;
   }
 
   if (candidate.entityType === "CAMPGROUND") {
@@ -718,7 +727,8 @@ async function acceptImportCandidateAsDraft(candidateId: string) {
         sourceType: "imported",
         reviewStatus: "needs_review",
         sourceName,
-        sourceUrl
+        sourceUrl,
+        parentAreaId
       }
     });
 
@@ -758,16 +768,17 @@ async function createStandaloneImportDrafts(limit = 20) {
   const safeCandidates = candidates.filter((candidate) => {
     if (candidate.lat === null || candidate.lng === null) return false;
     if (!isImportCandidateInScope(candidate)) return false;
-    if (candidate.entityType === "CLIMBING_AREA" && importHierarchy(candidate.mappedPayload).parentName) {
-      return false;
-    }
     if (referenceKeys.has(`${candidate.sourceId}:${candidate.entityType}:${candidate.externalId}`)) {
       return false;
     }
-    return !suggestedImportTarget(
+    const suggestion = suggestedImportTarget(
       candidate,
       candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
     );
+    if (candidate.entityType === "CLIMBING_AREA" && importHierarchy(candidate.mappedPayload).parentName) {
+      return suggestion?.reason === "parent";
+    }
+    return !suggestion;
   });
 
   for (const candidate of safeCandidates.slice(0, limit)) {
@@ -862,7 +873,17 @@ export async function saveAreaContentAction(formData: FormData) {
     .parse(formData.get("approachMinutes") || undefined);
   const sourceName = optionalFormText(formData, "sourceName", 200);
   const sourceUrl = optionalFormText(formData, "sourceUrl", 2000);
+  const parentAreaId = z.string().cuid().nullable().parse(formData.get("parentAreaId") || null);
   if (sourceUrl) z.string().url().parse(sourceUrl);
+
+  if (parentAreaId) {
+    if (parentAreaId === id) throw new Error("An area cannot be its own parent.");
+    const parent = await prisma.climbingArea.findUniqueOrThrow({ where: { id: parentAreaId } });
+    if (parent.parentAreaId) throw new Error("Only one subarea level is supported.");
+    if (id && await prisma.climbingArea.count({ where: { parentAreaId: id } })) {
+      throw new Error("An area with subareas cannot also become a subarea.");
+    }
+  }
 
   if (intent === "publish") {
     if (hasEditorialPlaceholders([summary, bestFor, approach, parking, roadDifficulty])) {
@@ -887,6 +908,7 @@ export async function saveAreaContentAction(formData: FormData) {
     lng: formCoordinate(formData, "lng"),
     sourceName,
     sourceUrl,
+    parentAreaId,
     ...(status ? { reviewStatus: status, lastReviewedAt: status === "reviewed" ? new Date() : null } : {})
   };
 

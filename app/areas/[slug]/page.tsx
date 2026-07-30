@@ -31,6 +31,13 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
         <ArrowLeft size={17} />
         Areas
       </Link>
+      {area.parentArea ? (
+        <p className="area-breadcrumb">
+          <Link href={`/areas/${area.parentArea.slug}`}>{area.parentArea.name}</Link>
+          <span aria-hidden="true">/</span>
+          <span>{area.name}</span>
+        </p>
+      ) : null}
 
       <section className="section two-col">
         <div>
@@ -62,6 +69,21 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
           </div>
 
           <div className="list">
+            {area.childAreas.length ? (
+              <article className="card">
+                <h3>Subareas</h3>
+                <p>Explore the reviewed climbing zones organized beneath this area.</p>
+                <div className="simple-area-links">
+                  {area.childAreas.map((child) => (
+                    <Link href={`/areas/${child.slug}`} key={child.id}>
+                      <MapPin size={17} />
+                      <span><strong>{child.name}</strong><small>{child.bestFor}</small></span>
+                      <span>View</span>
+                    </Link>
+                  ))}
+                </div>
+              </article>
+            ) : null}
             <article className="card">
               <h3>Route and access details</h3>
               <p>

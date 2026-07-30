@@ -2,9 +2,14 @@ import { prisma } from "@/lib/prisma";
 
 export function getAreas() {
   return prisma.climbingArea.findMany({
-    where: { reviewStatus: "reviewed" },
+    where: { reviewStatus: "reviewed", parentAreaId: null },
     orderBy: [{ region: "asc" }, { name: "asc" }],
     include: {
+      parentArea: true,
+      childAreas: {
+        where: { reviewStatus: "reviewed" },
+        orderBy: { name: "asc" }
+      },
       hubLinks: {
         include: { hub: true },
         orderBy: { rank: "asc" }
@@ -25,6 +30,11 @@ export function getAreaBySlug(slug: string) {
   return prisma.climbingArea.findUnique({
     where: { slug, reviewStatus: "reviewed" },
     include: {
+      parentArea: true,
+      childAreas: {
+        where: { reviewStatus: "reviewed" },
+        orderBy: { name: "asc" }
+      },
       hubLinks: {
         include: { hub: true },
         orderBy: { rank: "asc" }
@@ -46,7 +56,7 @@ export function getHubs() {
     orderBy: [{ region: "asc" }, { name: "asc" }],
     include: {
       areas: {
-        where: { climbingArea: { reviewStatus: "reviewed" } },
+        where: { climbingArea: { reviewStatus: "reviewed", parentAreaId: null } },
         orderBy: { rank: "asc" },
         include: {
           climbingArea: {
@@ -77,7 +87,7 @@ export function getHubBySlug(slug: string) {
     where: { slug },
     include: {
       areas: {
-        where: { climbingArea: { reviewStatus: "reviewed" } },
+        where: { climbingArea: { reviewStatus: "reviewed", parentAreaId: null } },
         orderBy: { rank: "asc" },
         include: {
           climbingArea: {

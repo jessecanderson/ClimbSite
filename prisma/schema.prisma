@@ -234,6 +234,7 @@ model ClimbingArea {
   lastReviewedAt  DateTime?
   sourceName      String?
   sourceUrl       String?
+  parentAreaId    String?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   hubLinks        HubClimbingArea[]
@@ -241,6 +242,10 @@ model ClimbingArea {
   tripStops       TripStop[]
   importCandidates ImportCandidate[]      @relation("ClimbingAreaImportCandidates")
   externalReferences ExternalReference[]
+  parentArea      ClimbingArea?          @relation("AreaHierarchy", fields: [parentAreaId], references: [id], onDelete: SetNull)
+  childAreas      ClimbingArea[]         @relation("AreaHierarchy")
+
+  @@index([parentAreaId])
 }
 
 model Campground {
