@@ -9,7 +9,7 @@ export default async function HubsPage() {
     <main className="page">
       <div className="section-head">
         <div>
-          <p className="eyebrow">Explore the Southeast</p>
+          <p className="eyebrow">Explore destinations</p>
           <h1>Choose a destination.</h1>
           <p className="lead">
             Start with a region, then compare climbing stops and the camps that make the morning drive work.
