@@ -42,7 +42,8 @@ export async function loginAction(formData: FormData) {
   const redirectTo = safeRedirectPath(formData.get("redirectTo"));
   const magicLinkEnabled = Boolean(process.env.AUTH_RESEND_KEY && process.env.AUTH_EMAIL_FROM);
   const emailFallbackEnabled =
-    process.env.NODE_ENV !== "production" && process.env.AUTH_EMAIL_FALLBACK !== "false";
+    process.env.AUTH_EMAIL_FALLBACK === "true" ||
+    (process.env.NODE_ENV !== "production" && process.env.AUTH_EMAIL_FALLBACK !== "false");
 
   if (!magicLinkEnabled && !emailFallbackEnabled) {
     redirect("/login");
