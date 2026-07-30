@@ -34,20 +34,22 @@ export default async function HubsPage() {
             <p>{hub.summary}</p>
             {hub.seasonNotes ? <p className="season-note compact"><CalendarCheck size={15} /><span>{hub.seasonNotes}</span></p> : null}
             </div>
-            <div className="meta-row">
-              <span className="pill">
-                <Mountain size={14} />
-                {hub.areas.length} areas
-              </span>
-              <span className="pill">
-                <Tent size={14} />
-                {hub.campgrounds.length} camp options
-              </span>
+            <div className="destination-list-actions">
+              <div className="meta-row">
+                <span className="pill">
+                  <Mountain size={14} />
+                  {hub.areas.length} areas
+                </span>
+                <span className="pill">
+                  <Tent size={14} />
+                  {hub.campgrounds.length} camp options
+                </span>
+              </div>
+              <Link className="button" href={`/hubs/${hub.slug}`}>
+                Explore destination
+                <ArrowRight size={17} />
+              </Link>
             </div>
-            <Link className="button" href={`/hubs/${hub.slug}`}>
-              Explore destination
-              <ArrowRight size={17} />
-            </Link>
           </article>
         ))}
         </div>

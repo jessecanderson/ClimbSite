@@ -965,6 +965,7 @@ textarea.input {
 .destination-list { display: grid; gap: 14px; }
 .destination-list-card { align-items: center; background: var(--surface-strong); border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 20px; grid-template-columns: 54px minmax(0, 1fr) auto; padding: 22px; }
 .destination-list-card .meta-row { justify-content: flex-end; }
+.destination-list-actions { display: grid; gap: 12px; justify-items: end; }
 
 .destination-hero { align-items: stretch; display: grid; gap: 28px; grid-template-columns: minmax(0, .95fr) minmax(380px, 1.05fr); padding-top: 24px; }
 .destination-intro { padding: 28px 0; }
@@ -1036,7 +1037,7 @@ textarea.input {
   .destination-grid, .area-selection-grid, .area-metrics { grid-template-columns: 1fr; }
   .destination-card:last-child { grid-column: auto; }
   .destination-list-card { align-items: start; grid-template-columns: 40px 1fr; }
-  .destination-list-card > .meta-row, .destination-list-card > .button { grid-column: 2; justify-self: start; }
+  .destination-list-actions { grid-column: 2; justify-items: start; }
   .destination-map { min-height: 380px; }
   .comparison-head { align-items: stretch; flex-direction: column; }
   .comparison-head .button { justify-content: center; }
