@@ -14,7 +14,8 @@
     "import:ridb:campgrounds": "tsx scripts/import-ridb-campgrounds.ts",
     "import:ridb:climbing-areas": "tsx scripts/import-ridb-climbing-areas.ts",
     "import:nps:campgrounds": "tsx scripts/import-nps-campgrounds.ts",
-    "import:openbeta:climbing-areas": "tsx scripts/import-openbeta-climbing-areas.ts"
+    "import:openbeta:climbing-areas": "tsx scripts/import-openbeta-climbing-areas.ts",
+    "sync:ridb": "pnpm import:ridb:climbing-areas -- --state KY --limit 25 --max-pages 1 --activities 7,100041,100040,100035 && pnpm import:ridb:campgrounds -- --state KY --query campground --limit 25 --max-pages 1"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

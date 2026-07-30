@@ -31,6 +31,13 @@ enum ImportCandidateStatus {
   NEEDS_RESEARCH
 }
 
+enum ImportSyncStatus {
+  NEW
+  UNCHANGED
+  CHANGED
+  REVIEW_REQUIRED
+}
+
 model User {
   id            String          @id @default(cuid())
   name          String?
@@ -164,6 +171,14 @@ model ImportCandidate {
   lng                Float?
   rawPayload         Json
   mappedPayload      Json
+  previousRawPayload Json?
+  previousMappedPayload Json?
+  syncStatus         ImportSyncStatus @default(NEW)
+  syncChangedFields  Json?
+  syncReason         String?
+  syncDecisionMethod String?
+  syncConfidence     Float?
+  lastSyncedAt       DateTime?
   status             ImportCandidateStatus @default(PENDING)
   matchedCampgroundId String?
   matchedAreaId      String?

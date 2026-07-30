@@ -37,7 +37,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
           <p className="eyebrow">{area.region}</p>
           <h1>{area.name}</h1>
           <p className="lead">{area.summary}</p>
-          <div className="area-metrics">
+          <div className="meta-row area-status-row">
             <span className="pill">
               <BadgeCheck size={14} />
               {area.reviewStatus === "reviewed" ? "Curated" : "Needs review"}
@@ -45,6 +45,8 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
             {area.lastReviewedAt ? (
               <span className="pill">Reviewed {formatTripDate(area.lastReviewedAt)}</span>
             ) : null}
+          </div>
+          <div className="area-metrics">
             <span className="metric-block">
               <Route size={14} />
               <strong>{area.bestFor}</strong><small>Climbing style</small>

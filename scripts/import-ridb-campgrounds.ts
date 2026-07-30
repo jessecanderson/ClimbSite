@@ -1,4 +1,5 @@
 import { PrismaClient, type Prisma } from "@prisma/client";
+import { analyzeImportSync } from "../lib/import-sync";
 
 const prisma = new PrismaClient();
 const ridbBaseUrl = "https://ridb.recreation.gov/api/v1";
@@ -270,6 +271,13 @@ async function main() {
           facility.FacilityLongitude
         );
         const sourceUrl = sourceUrlForFacility(facility);
+        const rawPayload = toJson(facility);
+        const mappedPayload = toJson(mappedPayloadForFacility(facility));
+        const existing = await prisma.importCandidate.findUnique({
+          where: { sourceId_entityType_externalId: { sourceId: source.id, entityType: "CAMPGROUND", externalId } },
+          select: { rawPayload: true, mappedPayload: true, status: true }
+        });
+        const sync = analyzeImportSync(existing, rawPayload, mappedPayload);
 
         await prisma.importCandidate.upsert({
           where: {
@@ -287,8 +295,9 @@ async function main() {
             sourceUrl,
             lat,
             lng,
-            rawPayload: toJson(facility),
-            mappedPayload: toJson(mappedPayloadForFacility(facility))
+            rawPayload,
+            mappedPayload,
+            ...sync
           },
           create: {
             sourceId: source.id,
@@ -301,8 +310,9 @@ async function main() {
             sourceUrl,
             lat,
             lng,
-            rawPayload: toJson(facility),
-            mappedPayload: toJson(mappedPayloadForFacility(facility))
+            rawPayload,
+            mappedPayload,
+            ...sync
           }
         });
 

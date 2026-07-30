@@ -465,6 +465,52 @@ export async function updateImportCandidateStatusAction(formData: FormData) {
   revalidatePath("/admin/imports");
 }
 
+export async function acknowledgeImportSyncAction(formData: FormData) {
+  await requireAdmin();
+  const candidateId = z.string().cuid().parse(formData.get("candidateId"));
+
+  await prisma.$transaction(async (tx) => {
+    const candidate = await tx.importCandidate.findUniqueOrThrow({ where: { id: candidateId } });
+    await tx.externalReference.updateMany({
+      where: {
+        sourceId: candidate.sourceId,
+        entityType: candidate.entityType,
+        externalId: candidate.externalId
+      },
+      data: { sourceUrl: candidate.sourceUrl }
+    });
+    await tx.importCandidate.update({
+      where: { id: candidate.id },
+      data: {
+        syncStatus: "UNCHANGED",
+        previousRawPayload: undefined,
+        previousMappedPayload: undefined,
+        syncChangedFields: [],
+        syncReason: "Source changes reviewed; canonical editorial fields were preserved.",
+        syncDecisionMethod: "admin",
+        syncConfidence: 1
+      }
+    });
+  });
+
+  revalidatePath("/admin/imports");
+}
+
+export async function acknowledgeNonReviewSyncsAction() {
+  await requireAdmin();
+  await prisma.importCandidate.updateMany({
+    where: { syncStatus: "CHANGED", status: { in: ["IGNORED", "PENDING", "NEEDS_RESEARCH"] } },
+    data: {
+      syncStatus: "UNCHANGED",
+      syncChangedFields: [],
+      syncReason: "Non-linked source changes acknowledged; the prior import decision was preserved.",
+      syncDecisionMethod: "policy",
+      syncConfidence: 1
+    }
+  });
+  revalidatePath("/admin/imports");
+}
+
 export async function linkImportCandidateAction(formData: FormData) {
   await requireAdmin();
   const candidateId = z.string().cuid().parse(formData.get("candidateId"));

@@ -1,4 +1,5 @@
 import { PrismaClient, type Prisma } from "@prisma/client";
+import { analyzeImportSync } from "../lib/import-sync";
 
 const prisma = new PrismaClient();
 const openBetaEndpoint = "https://api.openbeta.io";
@@ -332,6 +333,13 @@ async function main() {
 
           seenExternalIds.add(externalId);
           const { lat, lng } = coordinatePair(row.area.metadata.lat, row.area.metadata.lng);
+          const rawPayload = toJson(row.area);
+          const mappedPayload = toJson(mappedPayloadForArea(row.area, row.parentName));
+          const existing = await prisma.importCandidate.findUnique({
+            where: { sourceId_entityType_externalId: { sourceId: source.id, entityType: "CLIMBING_AREA", externalId } },
+            select: { rawPayload: true, mappedPayload: true, status: true }
+          });
+          const sync = analyzeImportSync(existing, rawPayload, mappedPayload);
 
           await prisma.importCandidate.upsert({
             where: {
@@ -349,8 +357,9 @@ async function main() {
               sourceUrl: sourceUrlForArea(row.area),
               lat,
               lng,
-              rawPayload: toJson(row.area),
-              mappedPayload: toJson(mappedPayloadForArea(row.area, row.parentName))
+              rawPayload,
+              mappedPayload,
+              ...sync
             },
             create: {
               sourceId: source.id,
@@ -363,8 +372,9 @@ async function main() {
               sourceUrl: sourceUrlForArea(row.area),
               lat,
               lng,
-              rawPayload: toJson(row.area),
-              mappedPayload: toJson(mappedPayloadForArea(row.area, row.parentName))
+              rawPayload,
+              mappedPayload,
+              ...sync
             }
           });
 
