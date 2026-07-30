@@ -40,7 +40,7 @@ export default async function NewTripPage({
           <p className="lead">
             {selectedAreas.length
               ? `Start with ${selectedAreas.length === 1 ? selectedAreas[0].name : `${selectedAreas.length} areas`}, then choose the camp logistics that fit each climbing day.`
-              : "Start with a name, then add Southeast climbing stops. The app will show nearby camping and logistics for each stop."}
+              : "Start with a name, then add climbing stops. The app will show nearby camping and logistics for each stop."}
           </p>
           {selectedHub ? <p className="eyebrow">From {selectedHub.name}</p> : null}
           {selectedAreas.length ? (

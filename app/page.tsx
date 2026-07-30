@@ -11,7 +11,7 @@ export default async function HomePage() {
       <section className="home-hero">
         <div className="page hero-inner">
           <div className="hero-copy">
-            <p className="eyebrow">Southeast field guide</p>
+            <p className="eyebrow">Climbing trip field guide</p>
             <h1>Plan a climbing weekend.</h1>
             <p className="lead">Choose where to climb, compare the camp-to-crag drive, and keep the sources you need to verify before leaving home.</p>
           </div>
