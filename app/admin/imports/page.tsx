@@ -2,6 +2,8 @@ import Link from "next/link";
 import { CheckCircle2, Database, ExternalLink, FileSearch, Link2, RotateCw, Search, XCircle } from "lucide-react";
 import {
   acceptImportCandidateAction,
+  acknowledgeImportSyncAction,
+  acknowledgeNonReviewSyncsAction,
   linkImportCandidateAction,
   processImportCandidatesAction,
   undoAcceptImportCandidateAction,
@@ -42,7 +44,7 @@ export default async function AdminImportsPage({
     ...(selectedEntity === "ALL" ? {} : { entityType: selectedEntity })
   };
 
-  const [runs, candidates, campgrounds, climbingAreas, pendingForMatching, references] = await Promise.all([
+  const [runs, candidates, campgrounds, climbingAreas, pendingForMatching, references, syncChanges, syncCounts] = await Promise.all([
     prisma.importRun.findMany({
       orderBy: { startedAt: "desc" },
       take: 10,
@@ -65,8 +67,17 @@ export default async function AdminImportsPage({
     prisma.importCandidate.findMany({ where: { status: "PENDING" } }),
     prisma.externalReference.findMany({
       select: { sourceId: true, entityType: true, externalId: true, campgroundId: true, climbingAreaId: true }
-    })
+    }),
+    prisma.importCandidate.findMany({
+      where: { syncStatus: { in: ["CHANGED", "REVIEW_REQUIRED"] } },
+      orderBy: { lastSyncedAt: "desc" },
+      take: 25,
+      include: { source: true, matchedArea: true, matchedCampground: true }
+    }),
+    prisma.importCandidate.groupBy({ by: ["syncStatus"], _count: { _all: true } })
   ]);
+  const syncCount = (status: "NEW" | "UNCHANGED" | "CHANGED" | "REVIEW_REQUIRED") =>
+    syncCounts.find((row) => row.syncStatus === status)?._count._all ?? 0;
   const referenceKeys = new Set(
     references
       .filter((reference) => reference.campgroundId || reference.climbingAreaId)
@@ -171,7 +182,67 @@ export default async function AdminImportsPage({
             <small>Nothing is published automatically.</small>
           </div>
         </div>
+        <div className="card import-automation">
+          <div>
+            <h3>Source resync</h3>
+            <p>
+              Re-running a source importer now compares snapshots by stable external ID, preserves
+              link and ignore decisions, and protects canonical editorial fields.
+            </p>
+            <div className="meta-row import-automation-summary">
+              <span className="pill">{syncCount("UNCHANGED")} unchanged</span>
+              <span className="pill">{syncCount("CHANGED")} changed</span>
+              <span className="pill">{syncCount("REVIEW_REQUIRED")} need review</span>
+            </div>
+          </div>
+          <div className="import-automation-actions">
+            {syncCount("CHANGED") ? (
+              <form action={acknowledgeNonReviewSyncsAction}>
+                <button className="ghost-button" type="submit">Acknowledge preserved decisions</button>
+              </form>
+            ) : null}
+            <small>Source fetches run with the existing import commands; results appear here as diffs.</small>
+          </div>
+        </div>
       </section>
+
+      {syncChanges.some((candidate) => candidate.syncStatus === "REVIEW_REQUIRED") ? (
+        <section className="section">
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">Source changes</p>
+              <h2>Resync review</h2>
+              <p>Only changed source fields are shown. Published editorial content is not overwritten.</p>
+            </div>
+          </div>
+          <div className="grid">
+            {syncChanges.filter((candidate) => candidate.syncStatus === "REVIEW_REQUIRED").map((candidate) => {
+              const fields = Array.isArray(candidate.syncChangedFields)
+                ? candidate.syncChangedFields.filter((field): field is string => typeof field === "string")
+                : [];
+              const target = candidate.matchedArea?.name ?? candidate.matchedCampground?.name;
+              return (
+                <article className="card" key={`sync-${candidate.id}`}>
+                  <div className="meta-row">
+                    <span className="pill">{candidate.source.name}</span>
+                    <span className="pill">{candidate.syncStatus.replace("_", " ").toLowerCase()}</span>
+                  </div>
+                  <h3>{candidate.name}</h3>
+                  <p>{target ? `Linked to ${target}.` : "Not linked to a canonical record."}</p>
+                  <p>{candidate.syncReason}</p>
+                  <div className="meta-row">
+                    {fields.map((field) => <span className="pill" key={field}>{field}</span>)}
+                  </div>
+                  <form action={acknowledgeImportSyncAction}>
+                    <input type="hidden" name="candidateId" value={candidate.id} />
+                    <button className="button" type="submit">Keep link and accept snapshot</button>
+                  </form>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className="section">
         <div className="section-head">

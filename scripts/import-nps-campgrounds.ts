@@ -1,4 +1,5 @@
 import { PrismaClient, type Prisma } from "@prisma/client";
+import { analyzeImportSync } from "../lib/import-sync";
 
 const prisma = new PrismaClient();
 const npsBaseUrl = "https://developer.nps.gov/api/v1";
@@ -220,6 +221,13 @@ async function main() {
 
         const { lat, lng } = coordinatesFor(campground);
         const sourceUrl = campground.url || campground.directionsUrl || null;
+        const rawPayload = toJson(campground);
+        const mapped = toJson(mappedPayload(campground));
+        const existing = await prisma.importCandidate.findUnique({
+          where: { sourceId_entityType_externalId: { sourceId: source.id, entityType: "CAMPGROUND", externalId } },
+          select: { rawPayload: true, mappedPayload: true, status: true }
+        });
+        const sync = analyzeImportSync(existing, rawPayload, mapped);
         await prisma.importCandidate.upsert({
           where: {
             sourceId_entityType_externalId: {
@@ -236,8 +244,9 @@ async function main() {
             sourceUrl,
             lat,
             lng,
-            rawPayload: toJson(campground),
-            mappedPayload: toJson(mappedPayload(campground))
+            rawPayload,
+            mappedPayload: mapped,
+            ...sync
           },
           create: {
             sourceId: source.id,
@@ -250,8 +259,9 @@ async function main() {
             sourceUrl,
             lat,
             lng,
-            rawPayload: toJson(campground),
-            mappedPayload: toJson(mappedPayload(campground))
+            rawPayload,
+            mappedPayload: mapped,
+            ...sync
           }
         });
         candidateCount += 1;
