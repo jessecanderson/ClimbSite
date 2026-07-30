@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, MapPin, Mountain, Tent } from "lucide-react";
+import { ArrowRight, CalendarCheck, MapPin, Mountain, Tent } from "lucide-react";
 import { getHubs } from "@/lib/queries";
 
 export default async function HubsPage() {
@@ -9,29 +9,31 @@ export default async function HubsPage() {
     <main className="page">
       <div className="section-head">
         <div>
-          <p className="eyebrow">Southeast Hubs</p>
-          <h1>Weekend climbing destinations</h1>
+          <p className="eyebrow">Explore the Southeast</p>
+          <h1>Choose a destination.</h1>
           <p className="lead">
-            Browse destination hubs that group climbing areas, campgrounds, access notes, and source links.
+            Start with a region, then compare climbing stops and the camps that make the morning drive work.
           </p>
         </div>
       </div>
 
-      <div className="grid">
-        {hubs.map((hub) => (
-          <Link className="card" href={`/hubs/${hub.slug}`} key={hub.id}>
+      <div className="destination-index-layout">
+        <aside className="explore-aside"><strong>Explore</strong><p>Destinations group nearby climbing areas and curated campground relationships.</p><Link href="/areas">Browse every climbing area <ArrowRight size={15} /></Link></aside>
+        <div className="destination-list">
+        {hubs.map((hub, index) => (
+          <article className="destination-list-card" key={hub.id}>
+            <span className="destination-number">{String(index + 1).padStart(2, "0")}</span>
+            <div>
             <div className="meta-row">
               <span className="pill">
                 <MapPin size={14} />
                 {hub.region}
               </span>
-              <span className="pill">
-                <BadgeCheck size={14} />
-                Curated hub
-              </span>
             </div>
             <h3>{hub.name}</h3>
             <p>{hub.summary}</p>
+            {hub.seasonNotes ? <p className="season-note compact"><CalendarCheck size={15} /><span>{hub.seasonNotes}</span></p> : null}
+            </div>
             <div className="meta-row">
               <span className="pill">
                 <Mountain size={14} />
@@ -42,12 +44,13 @@ export default async function HubsPage() {
                 {hub.campgrounds.length} camp options
               </span>
             </div>
-            <span className="ghost-button">
-              Open hub
+            <Link className="button" href={`/hubs/${hub.slug}`}>
+              Explore destination
               <ArrowRight size={17} />
-            </span>
-          </Link>
+            </Link>
+          </article>
         ))}
+        </div>
       </div>
     </main>
   );

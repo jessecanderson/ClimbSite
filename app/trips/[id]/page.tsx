@@ -51,8 +51,14 @@ export default async function TripDetailPage({
 
   const selectedCampCount = trip.stops.filter((stop) => stop.selectedCampgroundId).length;
   const missingCampCount = trip.stops.length - selectedCampCount;
-  const completionPercent =
-    trip.stops.length > 0 ? Math.round((selectedCampCount / trip.stops.length) * 100) : 0;
+  const corePlanItems = [
+    { label: "Trip dates set", done: Boolean(trip.startDate && trip.endDate) },
+    { label: "Stops added", done: trip.stops.length > 0 },
+    { label: "Stop dates assigned", done: trip.stops.length > 0 && trip.stops.every((stop) => stop.plannedDate) },
+    { label: "Camps selected", done: trip.stops.length > 0 && missingCampCount === 0 }
+  ];
+  const completedCoreItems = corePlanItems.filter((item) => item.done).length;
+  const completionPercent = Math.round((completedCoreItems / corePlanItems.length) * 100);
   const availableAreas = areas.filter(
     (area) => !trip.stops.some((stop) => stop.climbingAreaId === area.id)
   );
@@ -157,17 +163,20 @@ export default async function TripDetailPage({
             <div
               className="trip-progress"
               role="progressbar"
-              aria-label="Stops with selected camping"
+              aria-label="Core plan readiness"
               aria-valuemin={0}
-              aria-valuemax={trip.stops.length}
-              aria-valuenow={selectedCampCount}
+              aria-valuemax={corePlanItems.length}
+              aria-valuenow={completedCoreItems}
             >
               <div className="trip-progress-head">
-                <strong>Camping selections</strong>
-                <span>{selectedCampCount} of {trip.stops.length}</span>
+                <strong>Core plan</strong>
+                <span>{completedCoreItems} of {corePlanItems.length} ready</span>
               </div>
               <div className="progress-track">
                 <span className="progress-fill" style={{ width: `${completionPercent}%` }} />
+              </div>
+              <div className="core-checklist">
+                {corePlanItems.map((item) => <span className={item.done ? "is-done" : ""} key={item.label}><CheckCircle2 size={15} /> {item.label}</span>)}
               </div>
             </div>
           ) : null}
@@ -187,7 +196,7 @@ export default async function TripDetailPage({
                 );
 
                 return (
-                  <details className="trip-stop" key={stop.id} open={trip.stops.length === 1}>
+                  <details className="trip-stop" name="trip-stops" key={stop.id} open={trip.stops.length === 1}>
                     <summary className="trip-stop-summary">
                       <span className="split-title">
                         <span className="stop-index">{stop.order}</span>

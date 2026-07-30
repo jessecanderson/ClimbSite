@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CircleUser, Compass, Database, ExternalLink, LogOut, Mail, Map, Mountain, Route, User } from "lucide-react";
+import { CircleUser, Compass, Database, ExternalLink, LogOut, Mail, Mountain, Route, User } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions";
 import "./globals.css";
@@ -28,15 +28,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <div className="nav-links">
               <Link className="nav-link" href="/hubs">
                 <Compass size={17} />
-                Hubs
-              </Link>
-              <Link className="nav-link" href="/areas">
-                <Map size={17} />
-                Areas
+                Explore
               </Link>
               <Link className="nav-link" href="/trips">
                 <Route size={17} />
-                Trips
+                My Trips
               </Link>
               {user ? (
                 <>
@@ -99,15 +95,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
               <div>
                 <h3>Data Credit</h3>
-                <a className="footer-link" href="https://ridb.recreation.gov/" target="_blank">
+                <a className="footer-link" href="https://ridb.recreation.gov/" target="_blank" rel="noopener noreferrer">
                   <ExternalLink size={16} />
                   ridb.recreation.gov
                 </a>
-                <a className="footer-link" href="https://openbeta.io/" target="_blank">
+                <a className="footer-link" href="https://openbeta.io/" target="_blank" rel="noopener noreferrer">
                   <ExternalLink size={16} />
                   openbeta.io
                 </a>
-                <a className="footer-link" href="https://www.nps.gov/" target="_blank">
+                <a className="footer-link" href="https://www.nps.gov/" target="_blank" rel="noopener noreferrer">
                   <ExternalLink size={16} />
                   National Park Service
                 </a>

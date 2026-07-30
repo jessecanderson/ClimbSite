@@ -27,7 +27,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
 
   return (
     <main className="page">
-      <Link className="ghost-button" href="/areas">
+      <Link className="text-link" href="/areas">
         <ArrowLeft size={17} />
         Areas
       </Link>
@@ -37,7 +37,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
           <p className="eyebrow">{area.region}</p>
           <h1>{area.name}</h1>
           <p className="lead">{area.summary}</p>
-          <div className="meta-row">
+          <div className="area-metrics">
             <span className="pill">
               <BadgeCheck size={14} />
               {area.reviewStatus === "reviewed" ? "Curated" : "Needs review"}
@@ -45,17 +45,17 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
             {area.lastReviewedAt ? (
               <span className="pill">Reviewed {formatTripDate(area.lastReviewedAt)}</span>
             ) : null}
-            <span className="pill">
+            <span className="metric-block">
               <Route size={14} />
-              {area.bestFor}
+              <strong>{area.bestFor}</strong><small>Climbing style</small>
             </span>
-            <span className="pill">
+            <span className="metric-block">
               <Clock size={14} />
-              {area.approachMinutes ?? "Varies"} min approach
+              <strong>{area.approachMinutes ?? "Varies"} min</strong><small>Approach</small>
             </span>
-            <span className="pill">
+            <span className="metric-block">
               <MapPin size={14} />
-              {area.roadDifficulty}
+              <strong>{area.roadDifficulty}</strong><small>Road / parking</small>
             </span>
           </div>
 
@@ -68,7 +68,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
                 permit, and closure details before climbing.
               </p>
               {area.sourceUrl ? (
-                <a className="ghost-button" href={area.sourceUrl} target="_blank">
+                <a className="ghost-button" href={area.sourceUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink size={17} />
                   {area.sourceName ? `${area.sourceName} details` : "Route / access details"}
                 </a>
@@ -98,7 +98,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
           </div>
           <Link className="button" href={`/trips/new?area=${encodeURIComponent(area.slug)}`}>
             <Route size={17} />
-            Start a trip here
+            Compare camping / Start trip
           </Link>
         </div>
 
@@ -130,7 +130,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
               <p>{link.logisticsNote}</p>
               <p>{link.campground.campingFit}</p>
               {link.campground.reservationUrl ? (
-                <a className="ghost-button" href={link.campground.reservationUrl} target="_blank">
+                <a className="ghost-button" href={link.campground.reservationUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink size={17} />
                   Camping / booking details
                 </a>

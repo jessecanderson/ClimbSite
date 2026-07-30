@@ -20,7 +20,7 @@ export default async function AreasPage({
   const filteredAreas = areas.filter((area) => {
     const matchesQuery =
       !query ||
-      [area.name, area.region, area.summary, area.bestFor].some((value) =>
+      [area.name, area.region, area.summary, area.bestFor, ...area.hubLinks.map(({ hub }) => hub.name)].some((value) =>
         value.toLowerCase().includes(query)
       );
     const matchesRegion = !filters.region || area.region === filters.region;
@@ -44,8 +44,8 @@ export default async function AreasPage({
     <main className="page">
       <div className="section-head">
         <div>
-          <p className="eyebrow">Climbing Areas</p>
-          <h1>Southeast climbing areas</h1>
+          <p className="eyebrow">Explore · All areas</p>
+          <h1>Browse every climbing area.</h1>
           <p className="lead">
             Curated and reviewed climbing stops with approach, parking, nearby camping context, and
             outbound source links for route and access details.
@@ -77,9 +77,9 @@ export default async function AreasPage({
           </select>
         </label>
         <label className="field">
-          <span>Hub</span>
+          <span>Destination</span>
           <select className="input" name="hub" defaultValue={filters.hub ?? ""}>
-            <option value="">All hubs</option>
+            <option value="">All destinations</option>
             {hubs.map((hub) => (
               <option value={hub.slug} key={hub.id}>{hub.name}</option>
             ))}
@@ -142,11 +142,11 @@ export default async function AreasPage({
               </span>
             </div>
             <div className="card-actions">
-              <Link className="ghost-button" href={`/areas/${area.slug}`}>
-                View area
+              <Link className="button" href={`/areas/${area.slug}`}>
+                Compare camping
               </Link>
               {area.sourceUrl ? (
-                <a className="ghost-button" href={area.sourceUrl} target="_blank">
+                <a className="ghost-button" href={area.sourceUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink size={17} />
                   Route / access source
                 </a>

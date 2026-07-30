@@ -67,7 +67,15 @@ export function AreaMap({ points }: { points: Point[] }) {
             <Popup>
               <strong>{point.name}</strong>
               {point.detail ? <p style={{ margin: "6px 0" }}>{point.detail}</p> : null}
-              {point.href ? <a href={point.href}>View details</a> : null}
+              {point.href ? (
+                <a
+                  href={point.href}
+                  target={point.href.startsWith("http") ? "_blank" : undefined}
+                  rel={point.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                >
+                  {point.href.startsWith("http") ? "Verify at source" : "View details"}
+                </a>
+              ) : null}
             </Popup>
           </Marker>
         ))}

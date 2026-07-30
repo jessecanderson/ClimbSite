@@ -35,8 +35,8 @@ export default async function NewTripPage({
     <main className="page">
       <section className="two-col">
         <div>
-          <p className="eyebrow">Road Trip Builder</p>
-          <h1>Create a climbing trip.</h1>
+          <p className="eyebrow">Final step · Save your plan</p>
+          <h1>Name the weekend.</h1>
           <p className="lead">
             {selectedAreas.length
               ? `Start with ${selectedAreas.length === 1 ? selectedAreas[0].name : `${selectedAreas.length} areas`}, then choose the camp logistics that fit each climbing day.`
@@ -98,8 +98,8 @@ export default async function NewTripPage({
               <input className="input" type="date" name="endDate" />
             </label>
           </div>
-          <label className="field">
-            <span>Notes</span>
+          <label className="field optional-field">
+            <span>Optional notes</span>
             <textarea
               className="input"
               name="notes"
