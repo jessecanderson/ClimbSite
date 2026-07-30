@@ -146,8 +146,8 @@ export default async function AdminImportsPage({
           <div>
             <h3>Safe automatic matches</h3>
             <p>
-              {autoLinkCount} pending candidates match an existing record by source ID or by one
-              unique nearby name. Ambiguous and distant same-name records are left untouched.
+              {autoLinkCount} pending candidates match an existing record by source ID, one unique
+              nearby name, or a named nearby parent. Ambiguous and distant records are left untouched.
             </p>
           </div>
           <div className="import-automation-actions">
@@ -212,7 +212,7 @@ export default async function AdminImportsPage({
             </p>
           </div>
         </div>
-        <div className="actions">
+        <div className="actions import-filters">
           {(["PENDING", "NEEDS_RESEARCH", "ACCEPTED", "LINKED", "IGNORED", "ALL"] as const).map((status) => (
             <Link
               className={selectedStatus === status ? "button" : "ghost-button"}
@@ -258,7 +258,12 @@ export default async function AdminImportsPage({
                 {hierarchy.pathTokens.length ? (
                   <p className="import-path">Source hierarchy: {hierarchy.pathTokens.join(" → ")}</p>
                 ) : null}
-                {hierarchy.parentName ? (
+                {hierarchy.parentName && suggestion?.reason === "parent" ? (
+                  <p className="form-message">
+                    Source subarea of <strong>{hierarchy.parentName}</strong>. Safe rollup found to
+                    the existing {suggestion.target.name} record.
+                  </p>
+                ) : hierarchy.parentName ? (
                   <p className="form-message form-message-warning">
                     Subarea of <strong>{hierarchy.parentName}</strong>. Keep this out of the
                     standalone-area queue until hierarchy support is available.
@@ -282,7 +287,7 @@ export default async function AdminImportsPage({
                       <input type="hidden" name="targetId" value={suggestion.target.id} />
                       <button className="button" type="submit">
                         <Link2 size={17} />
-                        Link to {suggestion.target.name} ({suggestion.distanceKm.toFixed(1)} km)
+                        {suggestion.reason === "parent" ? "Link under" : "Link to"} {suggestion.target.name} ({suggestion.distanceKm.toFixed(1)} km)
                       </button>
                     </form>
                   ) : candidate.status === "PENDING" && canCreateStandalone ? (

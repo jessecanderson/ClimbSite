@@ -970,6 +970,7 @@ textarea.input {
 .import-automation p { margin-bottom: 0; }
 .import-automation-actions { display: grid; gap: 8px; justify-items: end; }
 .import-automation-actions small { color: var(--muted); }
+.import-filters { margin-bottom: 28px; }
 .import-path { font-size: .82rem; overflow-wrap: anywhere; }
 .form-message-warning { background: rgba(173, 123, 40, .1); border-color: rgba(173, 123, 40, .4); color: var(--ink); }
 

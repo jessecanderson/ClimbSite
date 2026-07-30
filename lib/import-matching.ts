@@ -4,6 +4,7 @@ export type MatchCandidate = {
   normalizedName: string;
   lat: number | null;
   lng: number | null;
+  mappedPayload?: unknown;
 };
 
 export type MatchTarget = {
@@ -48,13 +49,34 @@ export function suggestedImportTarget(candidate: MatchCandidate, targets: MatchT
     (target) => normalizeImportName(target.name) === candidateName
   );
 
-  if (sameNameTargets.length !== 1) return null;
-
-  const target = sameNameTargets[0];
-  const distanceKm = distanceKilometers(candidate.lat, candidate.lng, target.lat, target.lng);
   const maximumDistanceKm = candidate.entityType === "CLIMBING_AREA" ? 15 : 5;
 
-  return distanceKm <= maximumDistanceKm ? { target, distanceKm } : null;
+  if (sameNameTargets.length === 1) {
+    const target = sameNameTargets[0];
+    const distanceKm = distanceKilometers(candidate.lat, candidate.lng, target.lat, target.lng);
+
+    if (distanceKm <= maximumDistanceKm) {
+      return { target, distanceKm, reason: "direct" as const };
+    }
+  }
+
+  if (candidate.entityType === "CLIMBING_AREA") {
+    const { parentName } = importHierarchy(candidate.mappedPayload);
+    const parentTargets = parentName
+      ? targets.filter((target) => normalizeImportName(target.name) === normalizeImportName(parentName))
+      : [];
+
+    if (parentTargets.length === 1) {
+      const target = parentTargets[0];
+      const distanceKm = distanceKilometers(candidate.lat, candidate.lng, target.lat, target.lng);
+
+      if (distanceKm <= 25) {
+        return { target, distanceKm, reason: "parent" as const };
+      }
+    }
+  }
+
+  return null;
 }
 
 export function importHierarchy(mappedPayload: unknown) {
