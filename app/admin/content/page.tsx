@@ -46,7 +46,7 @@ function EditorialButtons({ reviewed }: { reviewed: boolean }) {
   );
 }
 
-function AreaFields({ area }: { area?: ClimbingArea }) {
+function AreaFields({ area, allAreas }: { area?: ClimbingArea; allAreas: ClimbingArea[] }) {
   return (
     <>
       {area ? <input type="hidden" name="id" value={area.id} /> : null}
@@ -54,6 +54,15 @@ function AreaFields({ area }: { area?: ClimbingArea }) {
         <label className="field"><span>Name</span><input className="input" name="name" required defaultValue={area?.name} /></label>
         <label className="field"><span>Region</span><input className="input" name="region" required defaultValue={area?.region} placeholder="Kentucky" /></label>
       </div>
+      <label className="field">
+        <span>Parent area (optional subarea)</span>
+        <select className="input" name="parentAreaId" defaultValue={area?.parentAreaId ?? ""}>
+          <option value="">Top-level climbing area</option>
+          {allAreas.filter((candidate) => !candidate.parentAreaId && candidate.id !== area?.id).map((candidate) => (
+            <option value={candidate.id} key={candidate.id}>{candidate.name} ({candidate.region})</option>
+          ))}
+        </select>
+      </label>
       <label className="field"><span>Summary</span><textarea className="input" name="summary" required defaultValue={area?.summary} /></label>
       <label className="field"><span>Best for</span><input className="input" name="bestFor" required defaultValue={area?.bestFor} placeholder="Sport climbing, moderate routes" /></label>
       <label className="field"><span>Approach</span><textarea className="input" name="approach" required defaultValue={area?.approach} /></label>
@@ -201,7 +210,7 @@ export default async function AdminContentPage({
         <details className="card settings-card">
           <summary><Plus size={17} /> Add {selectedType === "area" ? "a climbing area" : selectedType === "campground" ? "a campground" : "area-to-camp logistics"}</summary>
           {selectedType === "area" ? (
-            <form className="form" action={saveAreaContentAction}><AreaFields /><EditorialButtons reviewed={false} /></form>
+            <form className="form" action={saveAreaContentAction}><AreaFields allAreas={allAreas} /><EditorialButtons reviewed={false} /></form>
           ) : selectedType === "campground" ? (
             <form className="form" action={saveCampgroundContentAction}><CampgroundFields /><EditorialButtons reviewed={false} /></form>
           ) : (
@@ -218,7 +227,7 @@ export default async function AdminContentPage({
           <details className="card editorial-record" key={area.id}>
             <summary><strong>{area.name}</strong><span className="pill">{area.reviewStatus.replace("_", " ")}</span></summary>
             <p>{area.region} · {area.sourceName ?? "No source named"}{area.lastReviewedAt ? ` · Reviewed ${formatTripDate(area.lastReviewedAt)}` : ""}</p>
-            <form className="form" action={saveAreaContentAction}><AreaFields area={area} /><EditorialButtons reviewed={area.reviewStatus === "reviewed"} /></form>
+            <form className="form" action={saveAreaContentAction}><AreaFields area={area} allAreas={allAreas} /><EditorialButtons reviewed={area.reviewStatus === "reviewed"} /></form>
           </details>
         ))}
         {selectedType === "campground" && campgrounds.map((campground) => (

@@ -86,26 +86,27 @@ export default async function AdminImportsPage({
   const autoLinkCount = pendingForMatching.filter((candidate) => {
     if (!isImportCandidateInScope(candidate)) return false;
     if (referenceKeys.has(`${candidate.sourceId}:${candidate.entityType}:${candidate.externalId}`)) return true;
-    return Boolean(
+    return (
       suggestedImportTarget(
         candidate,
         candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
-      )
+      )?.reason === "direct"
     );
   }).length;
   const standaloneDraftCount = pendingForMatching.filter((candidate) => {
     if (candidate.lat === null || candidate.lng === null) return false;
     if (!isImportCandidateInScope(candidate)) return false;
-    if (candidate.entityType === "CLIMBING_AREA" && importHierarchy(candidate.mappedPayload).parentName) {
-      return false;
-    }
     if (referenceKeys.has(`${candidate.sourceId}:${candidate.entityType}:${candidate.externalId}`)) {
       return false;
     }
-    return !suggestedImportTarget(
+    const suggestion = suggestedImportTarget(
       candidate,
       candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
     );
+    if (candidate.entityType === "CLIMBING_AREA" && importHierarchy(candidate.mappedPayload).parentName) {
+      return suggestion?.reason === "parent";
+    }
+    return !suggestion;
   }).length;
   const outOfScopeCount = pendingForMatching.filter(
     (candidate) => !isImportCandidateInScope(candidate)
@@ -319,7 +320,7 @@ export default async function AdminImportsPage({
                 candidate.entityType === "CAMPGROUND" ? campgrounds : climbingAreas
               );
               const canCreateStandalone =
-                candidate.entityType === "CAMPGROUND" || hierarchy.parentName === null;
+                candidate.entityType === "CAMPGROUND" || hierarchy.parentName === null || suggestion?.reason === "parent";
 
               return (
               <article className="card" key={candidate.id}>
@@ -336,8 +337,8 @@ export default async function AdminImportsPage({
                 ) : null}
                 {hierarchy.parentName && suggestion?.reason === "parent" ? (
                   <p className="form-message">
-                    Source subarea of <strong>{hierarchy.parentName}</strong>. Safe rollup found to
-                    the existing {suggestion.target.name} record.
+                    Source subarea of <strong>{hierarchy.parentName}</strong>. It can be created as
+                    an unpublished child of {suggestion.target.name}.
                   </p>
                 ) : hierarchy.parentName ? (
                   <p className="form-message form-message-warning">
@@ -357,13 +358,21 @@ export default async function AdminImportsPage({
                       Source details
                     </Link>
                   ) : null}
-                  {candidate.status === "PENDING" && suggestion ? (
+                  {candidate.status === "PENDING" && suggestion?.reason === "parent" ? (
+                    <form action={acceptImportCandidateAction}>
+                      <input type="hidden" name="candidateId" value={candidate.id} />
+                      <button className="button" type="submit">
+                        <CheckCircle2 size={17} />
+                        Create subarea under {suggestion.target.name}
+                      </button>
+                    </form>
+                  ) : candidate.status === "PENDING" && suggestion ? (
                     <form action={linkImportCandidateAction}>
                       <input type="hidden" name="candidateId" value={candidate.id} />
                       <input type="hidden" name="targetId" value={suggestion.target.id} />
                       <button className="button" type="submit">
                         <Link2 size={17} />
-                        {suggestion.reason === "parent" ? "Link under" : "Link to"} {suggestion.target.name} ({suggestion.distanceKm.toFixed(1)} km)
+                        Link to {suggestion.target.name} ({suggestion.distanceKm.toFixed(1)} km)
                       </button>
                     </form>
                   ) : candidate.status === "PENDING" && canCreateStandalone ? (
@@ -383,7 +392,7 @@ export default async function AdminImportsPage({
                   ) : null}
                 </div>
 
-                {candidate.status === "PENDING" ? <form className="form compact-form" action={linkImportCandidateAction}>
+                {candidate.status === "PENDING" && !hierarchy.parentName ? <form className="form compact-form" action={linkImportCandidateAction}>
                   <input type="hidden" name="candidateId" value={candidate.id} />
                   <label className="field">
                     <span>Link to existing {candidate.entityType === "CAMPGROUND" ? "campground" : "area"}</span>
@@ -424,6 +433,13 @@ export default async function AdminImportsPage({
                     </button>
                   </form>
                 </div> : null}
+                {candidate.status === "IGNORED" ? (
+                  <form action={updateImportCandidateStatusAction}>
+                    <input type="hidden" name="candidateId" value={candidate.id} />
+                    <input type="hidden" name="status" value="PENDING" />
+                    <button className="ghost-button" type="submit">Reconsider with current hierarchy rules</button>
+                  </form>
+                ) : null}
               </article>
               );
             })

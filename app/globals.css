@@ -1016,6 +1016,8 @@ textarea.input {
 .simple-area-links a { align-items: center; background: var(--surface-strong); border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 12px; grid-template-columns: auto 1fr auto; padding: 14px; }
 .simple-area-links small { color: var(--muted); display: block; }
 .simple-area-links a > span:last-child { align-items: center; display: flex; gap: 5px; }
+.area-breadcrumb { align-items: center; color: var(--muted); display: flex; font-size: .86rem; gap: 8px; margin: 14px 0 0; }
+.area-breadcrumb a { color: var(--green-dark); font-weight: 700; }
 .area-status-row { margin-bottom: 10px; }
 .area-metrics { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); margin: 0 0 22px; }
 .metric-block { background: var(--surface-strong); border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 3px; padding: 12px; }
