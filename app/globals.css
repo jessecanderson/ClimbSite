@@ -966,6 +966,12 @@ textarea.input {
 .destination-list-card { align-items: center; background: var(--surface-strong); border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 20px; grid-template-columns: 54px minmax(0, 1fr) auto; padding: 22px; }
 .destination-list-card .meta-row { justify-content: flex-end; }
 .destination-list-actions { display: grid; gap: 12px; justify-items: end; }
+.import-automation { align-items: center; display: flex; gap: 24px; justify-content: space-between; margin-top: 18px; }
+.import-automation p { margin-bottom: 0; }
+.import-automation-actions { display: grid; gap: 8px; justify-items: end; }
+.import-automation-actions small { color: var(--muted); }
+.import-path { font-size: .82rem; overflow-wrap: anywhere; }
+.form-message-warning { background: rgba(173, 123, 40, .1); border-color: rgba(173, 123, 40, .4); color: var(--ink); }
 
 .destination-hero { align-items: stretch; display: grid; gap: 28px; grid-template-columns: minmax(0, .95fr) minmax(380px, 1.05fr); padding-top: 24px; }
 .destination-intro { padding: 28px 0; }
@@ -1038,6 +1044,8 @@ textarea.input {
   .destination-card:last-child { grid-column: auto; }
   .destination-list-card { align-items: start; grid-template-columns: 40px 1fr; }
   .destination-list-actions { grid-column: 2; justify-items: start; }
+  .import-automation { align-items: stretch; flex-direction: column; }
+  .import-automation-actions { justify-items: stretch; }
   .destination-map { min-height: 380px; }
   .comparison-head { align-items: stretch; flex-direction: column; }
   .comparison-head .button { justify-content: center; }
