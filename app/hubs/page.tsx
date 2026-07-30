@@ -24,18 +24,16 @@ export default async function HubsPage() {
           <article className="destination-list-card" key={hub.id}>
             <span className="destination-number">{String(index + 1).padStart(2, "0")}</span>
             <div>
-            <div className="meta-row">
-              <span className="pill">
-                <MapPin size={14} />
-                {hub.region}
-              </span>
-            </div>
             <h3>{hub.name}</h3>
             <p>{hub.summary}</p>
             {hub.seasonNotes ? <p className="season-note compact"><CalendarCheck size={15} /><span>{hub.seasonNotes}</span></p> : null}
             </div>
             <div className="destination-list-actions">
               <div className="meta-row">
+                <span className="pill">
+                  <MapPin size={14} />
+                  {hub.region}
+                </span>
                 <span className="pill">
                   <Mountain size={14} />
                   {hub.areas.length} areas
