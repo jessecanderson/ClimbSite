@@ -4,7 +4,7 @@ import { analyzeImportSync } from "../lib/import-sync";
 const prisma = new PrismaClient();
 const npsBaseUrl = "https://developer.nps.gov/api/v1";
 
-type CliOptions = {
+export type NpsCampgroundImportOptions = {
   state?: string;
   parkCode?: string;
   query?: string;
@@ -47,8 +47,8 @@ type NpsResponse = {
   data?: NpsCampground[];
 };
 
-function parseArgs(argv: string[]): CliOptions {
-  const options: CliOptions = { limit: 50, maxPages: 1 };
+function parseArgs(argv: string[]): NpsCampgroundImportOptions {
+  const options: NpsCampgroundImportOptions = { limit: 50, maxPages: 1 };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -154,7 +154,7 @@ function mappedPayload(campground: NpsCampground): Prisma.InputJsonObject {
   };
 }
 
-async function fetchCampgrounds(options: CliOptions, start: number, apiKey: string) {
+async function fetchCampgrounds(options: NpsCampgroundImportOptions, start: number, apiKey: string) {
   const url = new URL(`${npsBaseUrl}/campgrounds`);
   url.searchParams.set("limit", String(options.limit));
   url.searchParams.set("start", String(start));
@@ -174,13 +174,12 @@ async function fetchCampgrounds(options: CliOptions, start: number, apiKey: stri
   return (await response.json()) as NpsResponse;
 }
 
-async function main() {
+export async function runNpsCampgroundImport(options: NpsCampgroundImportOptions) {
   const apiKey = process.env.NPS_API_KEY;
   if (!apiKey) {
     throw new Error("NPS_API_KEY is required. Register at https://www.nps.gov/subjects/developer/get-started.htm");
   }
 
-  const options = parseArgs(process.argv.slice(2));
   const source = await prisma.dataSource.upsert({
     where: { key: "nps" },
     update: {
@@ -276,6 +275,7 @@ async function main() {
       data: { status: "SUCCEEDED", finishedAt: new Date(), fetchedCount, candidateCount, skippedCount }
     });
     console.log(`NPS campground import complete: fetched=${fetchedCount} candidates=${candidateCount} skipped=${skippedCount}`);
+    return { runId: run.id, fetchedCount, candidateCount, skippedCount };
   } catch (error) {
     await prisma.importRun.update({
       where: { id: run.id },
@@ -292,7 +292,7 @@ async function main() {
   }
 }
 
-main()
+if (process.argv[1]?.includes("import-nps-campgrounds")) runNpsCampgroundImport(parseArgs(process.argv.slice(2)))
   .catch((error) => {
     console.error(error);
     process.exitCode = 1;

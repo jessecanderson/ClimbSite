@@ -32,7 +32,7 @@ const stateNamesByCode: Record<string, string> = {
   WV: "West Virginia"
 };
 
-type CliOptions = {
+export type OpenBetaImportOptions = {
   terms: string[];
   state?: string;
   limit: number;
@@ -87,8 +87,8 @@ type OpenBetaResponse = {
   errors?: Array<{ message: string }>;
 };
 
-function parseArgs(argv: string[]): CliOptions {
-  const options: CliOptions = {
+function parseArgs(argv: string[]): OpenBetaImportOptions {
+  const options: OpenBetaImportOptions = {
     terms: defaultTerms,
     limit: 5,
     includeChildren: true
@@ -279,8 +279,7 @@ async function fetchAreas(term: string, limit: number) {
   return payload.data?.areas ?? [];
 }
 
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
+export async function runOpenBetaImport(options: OpenBetaImportOptions) {
   const source = await prisma.dataSource.upsert({
     where: { key: "openbeta" },
     update: {
@@ -397,6 +396,7 @@ async function main() {
     console.log(
       `OpenBeta climbing-area import complete: fetched=${fetchedCount} candidates=${candidateCount} skipped=${skippedCount}`
     );
+    return { runId: run.id, fetchedCount, candidateCount, skippedCount };
   } catch (error) {
     await prisma.importRun.update({
       where: { id: run.id },
@@ -414,7 +414,7 @@ async function main() {
   }
 }
 
-main()
+if (process.argv[1]?.includes("import-openbeta-climbing-areas")) runOpenBetaImport(parseArgs(process.argv.slice(2)))
   .catch((error) => {
     console.error(error);
     process.exitCode = 1;

@@ -4,7 +4,7 @@ import { analyzeImportSync } from "../lib/import-sync";
 const prisma = new PrismaClient();
 const ridbBaseUrl = "https://ridb.recreation.gov/api/v1";
 
-type CliOptions = {
+export type RidbCampgroundImportOptions = {
   query: string;
   state?: string;
   limit: number;
@@ -46,8 +46,8 @@ type RidbResponse = {
   };
 };
 
-function parseArgs(argv: string[]): CliOptions {
-  const options: CliOptions = {
+function parseArgs(argv: string[]): RidbCampgroundImportOptions {
+  const options: RidbCampgroundImportOptions = {
     query: "campground",
     limit: 50,
     offset: 0,
@@ -187,7 +187,7 @@ function mappedPayloadForFacility(facility: RidbFacility): Prisma.InputJsonObjec
   };
 }
 
-async function fetchFacilities(options: CliOptions, offset: number, apiKey: string) {
+async function fetchFacilities(options: RidbCampgroundImportOptions, offset: number, apiKey: string) {
   const url = new URL(`${ridbBaseUrl}/facilities`);
   url.searchParams.set("query", options.query);
   url.searchParams.set("limit", String(options.limit));
@@ -212,14 +212,13 @@ async function fetchFacilities(options: CliOptions, offset: number, apiKey: stri
   return (await response.json()) as RidbResponse;
 }
 
-async function main() {
+export async function runRidbCampgroundImport(options: RidbCampgroundImportOptions) {
   const apiKey = process.env.RIDB_API_KEY;
 
   if (!apiKey) {
     throw new Error("RIDB_API_KEY is required. Register for a key at https://ridb.recreation.gov/.");
   }
 
-  const options = parseArgs(process.argv.slice(2));
   const source = await prisma.dataSource.upsert({
     where: { key: "ridb" },
     update: {
@@ -340,6 +339,7 @@ async function main() {
     console.log(
       `RIDB campground import complete: fetched=${fetchedCount} candidates=${candidateCount} skipped=${skippedCount}`
     );
+    return { runId: run.id, fetchedCount, candidateCount, skippedCount };
   } catch (error) {
     await prisma.importRun.update({
       where: { id: run.id },
@@ -357,7 +357,7 @@ async function main() {
   }
 }
 
-main()
+if (process.argv[1]?.includes("import-ridb-campgrounds")) runRidbCampgroundImport(parseArgs(process.argv.slice(2)))
   .catch((error) => {
     console.error(error);
     process.exitCode = 1;

@@ -4,8 +4,11 @@ import {
   acceptImportCandidateAction,
   acknowledgeImportSyncAction,
   acknowledgeNonReviewSyncsAction,
+  createSourceSyncProfileAction,
   linkImportCandidateAction,
   processImportCandidatesAction,
+  runSourceSyncProfileAction,
+  toggleSourceSyncProfileAction,
   undoAcceptImportCandidateAction,
   updateImportCandidateStatusAction
 } from "@/app/actions";
@@ -23,7 +26,7 @@ const statusOptions: ImportCandidateStatus[] = [
 ];
 const entityOptions: ImportEntityType[] = ["CAMPGROUND", "CLIMBING_AREA"];
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function selectedOption<T extends string>(value: string | string[] | undefined, options: T[], fallback: T | "ALL") {
   const candidate = Array.isArray(value) ? value[0] : value;
@@ -44,7 +47,7 @@ export default async function AdminImportsPage({
     ...(selectedEntity === "ALL" ? {} : { entityType: selectedEntity })
   };
 
-  const [runs, candidates, campgrounds, climbingAreas, pendingForMatching, references, syncChanges, syncCounts] = await Promise.all([
+  const [runs, candidates, campgrounds, climbingAreas, pendingForMatching, references, syncChanges, syncCounts, syncProfiles] = await Promise.all([
     prisma.importRun.findMany({
       orderBy: { startedAt: "desc" },
       take: 10,
@@ -74,7 +77,8 @@ export default async function AdminImportsPage({
       take: 25,
       include: { source: true, matchedArea: true, matchedCampground: true }
     }),
-    prisma.importCandidate.groupBy({ by: ["syncStatus"], _count: { _all: true } })
+    prisma.importCandidate.groupBy({ by: ["syncStatus"], _count: { _all: true } }),
+    prisma.sourceSyncProfile.findMany({ orderBy: [{ enabled: "desc" }, { name: "asc" }] })
   ]);
   const syncCount = (status: "NEW" | "UNCHANGED" | "CHANGED" | "REVIEW_REQUIRED") =>
     syncCounts.find((row) => row.syncStatus === status)?._count._all ?? 0;
@@ -203,6 +207,60 @@ export default async function AdminImportsPage({
               </form>
             ) : null}
             <small>Source fetches run with the existing import commands; results appear here as diffs.</small>
+          </div>
+        </div>
+        <div className="card">
+          <div className="section-head">
+            <div>
+              <h3>Source runner profiles</h3>
+              <p>Each profile is a bounded, retryable source scope. Admin runs and daily cron use the same importer code.</p>
+            </div>
+          </div>
+          <form className="form compact-form" action={createSourceSyncProfileAction}>
+            <div className="form-row">
+              <label className="field"><span>Source runner</span><select className="input" name="runner" required>
+                <option value="RIDB_CLIMBING_AREAS">RIDB climbing areas</option>
+                <option value="RIDB_CAMPGROUNDS">RIDB campgrounds</option>
+                <option value="NPS_CAMPGROUNDS">NPS campgrounds</option>
+                <option value="OPENBETA_AREAS">OpenBeta destination terms</option>
+              </select></label>
+              <label className="field"><span>State code</span><input className="input" name="state" maxLength={2} placeholder="KY" /></label>
+              <label className="field"><span>Refresh days</span><input className="input" name="refreshIntervalDays" type="number" min="7" max="365" placeholder="60" /></label>
+            </div>
+            <label className="field"><span>OpenBeta terms (pipe separated)</span><input className="input" name="terms" placeholder="Red River Gorge|New River Gorge" /></label>
+            <button className="ghost-button" type="submit">Save bounded profile</button>
+          </form>
+          <div className="list">
+            {syncProfiles.map((profile) => (
+              <article className="editorial-record" key={profile.id}>
+                <div className="section-head">
+                  <div><strong>{profile.name}</strong><p>{profile.entityType.replace("_", " ").toLowerCase()}</p></div>
+                  <span className="pill">{profile.status.toLowerCase()}</span>
+                </div>
+                <div className="meta-row">
+                  <span className="pill">{profile.enabled ? "scheduled" : "paused"}</span>
+                  <span className="pill">Every {profile.refreshIntervalDays} days</span>
+                  {profile.lastFinishedAt ? <span className="pill">Finished {profile.lastFinishedAt.toLocaleString()}</span> : null}
+                  {profile.lastDurationMs != null ? <span className="pill">{(profile.lastDurationMs / 1000).toFixed(1)}s</span> : null}
+                  {profile.lastFetchedCount != null ? <span className="pill">Fetched {profile.lastFetchedCount}</span> : null}
+                  {profile.lastCandidateCount != null ? <span className="pill">Updated {profile.lastCandidateCount}</span> : null}
+                  {profile.lastSkippedCount != null ? <span className="pill">Skipped {profile.lastSkippedCount}</span> : null}
+                </div>
+                {profile.lastError ? <p className="form-message form-message-warning">{profile.lastError}</p> : null}
+                <div className="actions">
+                  <form action={runSourceSyncProfileAction}>
+                    <input type="hidden" name="profileId" value={profile.id} />
+                    <button className="button" type="submit" disabled={!profile.enabled || profile.status === "RUNNING"}>Run one batch</button>
+                  </form>
+                  <form action={toggleSourceSyncProfileAction}>
+                    <input type="hidden" name="profileId" value={profile.id} />
+                    <input type="hidden" name="enabled" value={profile.enabled ? "false" : "true"} />
+                    <button className="ghost-button" type="submit">{profile.enabled ? "Pause schedule" : "Enable schedule"}</button>
+                  </form>
+                </div>
+              </article>
+            ))}
+            {syncProfiles.length === 0 ? <div className="empty">No source runner profiles yet.</div> : null}
           </div>
         </div>
       </section>

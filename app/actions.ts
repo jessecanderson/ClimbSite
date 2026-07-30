@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { parseDateInput } from "@/lib/dates";
 import { importHierarchy, isImportCandidateInScope, suggestedImportTarget } from "@/lib/import-matching";
 import { prisma } from "@/lib/prisma";
+import { runSourceSyncProfile, sourceRunnerOptions } from "@/lib/source-sync-runner";
 
 const emailSchema = z.string().email();
 const authProviderSchema = z.enum(["google", "apple"]);
@@ -19,6 +20,7 @@ const tripSchema = z.object({
 });
 const stopNotesSchema = z.string().trim().max(500).optional();
 const moveDirectionSchema = z.enum(["up", "down"]);
+const sourceRunnerSchema = z.enum(sourceRunnerOptions);
 
 function safeRedirectPath(value: FormDataEntryValue | null, fallback = "/trips") {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
@@ -508,6 +510,55 @@ export async function acknowledgeNonReviewSyncsAction() {
       syncConfidence: 1
     }
   });
+  revalidatePath("/admin/imports");
+}
+
+export async function createSourceSyncProfileAction(formData: FormData) {
+  await requireAdmin();
+  const runner = sourceRunnerSchema.parse(formData.get("runner"));
+  const state = z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/).optional().parse(formData.get("state") || undefined);
+  const terms = z.string().trim().max(2000).optional().parse(formData.get("terms") || undefined)?.split("|").map((term) => term.trim()).filter(Boolean);
+  const refreshIntervalDays = z.coerce.number().int().min(7).max(365).optional().parse(formData.get("refreshIntervalDays") || undefined)
+    ?? (runner.includes("CAMPGROUNDS") ? 60 : 90);
+  if (runner === "OPENBETA_AREAS" && !terms?.length) throw new Error("OpenBeta profiles require pipe-separated destination terms.");
+  if (runner !== "OPENBETA_AREAS" && !state) throw new Error("State is required for this bounded source profile.");
+
+  const params = runner === "RIDB_CAMPGROUNDS"
+    ? { query: "campground", state, limit: 50, offset: 0, maxPages: 1 }
+    : runner === "RIDB_CLIMBING_AREAS"
+      ? { state, activityIds: ["7", "100041", "100040", "100035"], limit: 50, offset: 0, maxPages: 1 }
+      : runner === "NPS_CAMPGROUNDS"
+        ? { state, limit: 50, maxPages: 1 }
+        : { terms, state, limit: 5, includeChildren: true };
+  const scope = state ?? terms!.join("|").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 80);
+
+  await prisma.sourceSyncProfile.upsert({
+    where: { key: `${runner}:${scope}` },
+    update: { params, enabled: true, refreshIntervalDays },
+    create: {
+      key: `${runner}:${scope}`,
+      name: `${runner.replaceAll("_", " ").toLowerCase()} · ${state ?? terms!.join(", ")}`,
+      runner,
+      entityType: runner.includes("CAMPGROUNDS") ? "CAMPGROUND" : "CLIMBING_AREA",
+      refreshIntervalDays,
+      params
+    }
+  });
+  revalidatePath("/admin/imports");
+}
+
+export async function runSourceSyncProfileAction(formData: FormData) {
+  await requireAdmin();
+  const profileId = z.string().cuid().parse(formData.get("profileId"));
+  await runSourceSyncProfile(profileId);
+  revalidatePath("/admin/imports");
+}
+
+export async function toggleSourceSyncProfileAction(formData: FormData) {
+  await requireAdmin();
+  const profileId = z.string().cuid().parse(formData.get("profileId"));
+  const enabled = z.enum(["true", "false"]).transform((value) => value === "true").parse(formData.get("enabled"));
+  await prisma.sourceSyncProfile.update({ where: { id: profileId }, data: { enabled } });
   revalidatePath("/admin/imports");
 }
 
