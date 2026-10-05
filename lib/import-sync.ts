@@ -1,9 +1,12 @@
-import type { ImportCandidateStatus, Prisma } from "@prisma/client";
+import type { ImportCandidateStatus, ImportSyncStatus, Prisma } from "@prisma/client";
 
 type ExistingSnapshot = {
   rawPayload: Prisma.JsonValue;
   mappedPayload: Prisma.JsonValue;
   status: ImportCandidateStatus;
+  syncStatus: ImportSyncStatus;
+  previousRawPayload: Prisma.JsonValue | null;
+  previousMappedPayload: Prisma.JsonValue | null;
 } | null;
 
 function json(value: unknown) {
@@ -33,7 +36,10 @@ export function analyzeImportSync(
     };
   }
 
-  if (json(existing.rawPayload) === json(nextRaw)) {
+  const pendingReview = existing.syncStatus === "REVIEW_REQUIRED";
+  if (json(existing.rawPayload) === json(nextRaw) && json(existing.mappedPayload) === json(nextMapped)) {
+    // Leave the outstanding diff and review decision intact until an admin acknowledges it.
+    if (pendingReview) return { lastSyncedAt };
     return {
       syncStatus: "UNCHANGED" as const,
       syncChangedFields: [] as Prisma.InputJsonValue,
@@ -44,16 +50,18 @@ export function analyzeImportSync(
     };
   }
 
-  const before = object(existing.mappedPayload);
+  const baselineRaw = pendingReview ? existing.previousRawPayload ?? existing.rawPayload : existing.rawPayload;
+  const baselineMapped = pendingReview ? existing.previousMappedPayload ?? existing.mappedPayload : existing.mappedPayload;
+  const before = object(baselineMapped);
   const after = object(nextMapped as Prisma.JsonValue);
   const changedFields = [...new Set([...Object.keys(before), ...Object.keys(after)])]
     .filter((key) => json(before[key]) !== json(after[key]))
     .sort();
-  const requiresReview = existing.status === "LINKED" || existing.status === "ACCEPTED";
+  const requiresReview = pendingReview || existing.status === "LINKED" || existing.status === "ACCEPTED";
 
   return {
-    previousRawPayload: existing.rawPayload as Prisma.InputJsonValue,
-    previousMappedPayload: existing.mappedPayload as Prisma.InputJsonValue,
+    previousRawPayload: baselineRaw as Prisma.InputJsonValue,
+    previousMappedPayload: baselineMapped as Prisma.InputJsonValue,
     syncStatus: requiresReview ? ("REVIEW_REQUIRED" as const) : ("CHANGED" as const),
     syncChangedFields: changedFields as Prisma.InputJsonValue,
     syncReason: requiresReview

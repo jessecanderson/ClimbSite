@@ -7,7 +7,12 @@ export function parseDateInput(value: FormDataEntryValue | null) {
     throw new Error("Invalid date");
   }
 
-  return new Date(`${value}T12:00:00.000Z`);
+  const date = new Date(`${value}T12:00:00.000Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+    throw new Error("Invalid date");
+  }
+
+  return date;
 }
 
 export function formatDateInput(value?: Date | null) {

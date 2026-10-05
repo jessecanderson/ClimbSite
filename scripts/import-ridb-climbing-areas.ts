@@ -294,7 +294,7 @@ export async function runRidbClimbingAreaImport(options: RidbClimbingAreaImportO
           const mappedPayload = toJson(mappedPayloadForRecArea(recArea));
           const existing = await prisma.importCandidate.findUnique({
             where: { sourceId_entityType_externalId: { sourceId: source.id, entityType: "CLIMBING_AREA", externalId } },
-            select: { rawPayload: true, mappedPayload: true, status: true }
+            select: { rawPayload: true, mappedPayload: true, status: true, syncStatus: true, previousRawPayload: true, previousMappedPayload: true }
           });
           const sync = analyzeImportSync(existing, rawPayload, mappedPayload);
 

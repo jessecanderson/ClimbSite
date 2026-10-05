@@ -270,7 +270,7 @@ export async function runRidbCampgroundImport(options: RidbCampgroundImportOptio
         const mappedPayload = toJson(mappedPayloadForFacility(facility));
         const existing = await prisma.importCandidate.findUnique({
           where: { sourceId_entityType_externalId: { sourceId: source.id, entityType: "CAMPGROUND", externalId } },
-          select: { rawPayload: true, mappedPayload: true, status: true }
+          select: { rawPayload: true, mappedPayload: true, status: true, syncStatus: true, previousRawPayload: true, previousMappedPayload: true }
         });
         const sync = analyzeImportSync(existing, rawPayload, mappedPayload);
 

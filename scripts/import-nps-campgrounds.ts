@@ -224,7 +224,7 @@ export async function runNpsCampgroundImport(options: NpsCampgroundImportOptions
         const mapped = toJson(mappedPayload(campground));
         const existing = await prisma.importCandidate.findUnique({
           where: { sourceId_entityType_externalId: { sourceId: source.id, entityType: "CAMPGROUND", externalId } },
-          select: { rawPayload: true, mappedPayload: true, status: true }
+          select: { rawPayload: true, mappedPayload: true, status: true, syncStatus: true, previousRawPayload: true, previousMappedPayload: true }
         });
         const sync = analyzeImportSync(existing, rawPayload, mapped);
         await prisma.importCandidate.upsert({

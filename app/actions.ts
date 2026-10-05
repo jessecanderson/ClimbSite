@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { signIn, signOut } from "@/auth";
 import { requireAdmin } from "@/lib/admin";
 import { getCurrentUser } from "@/lib/auth";
@@ -102,7 +103,7 @@ export async function createTripAction(formData: FormData) {
 
   const selectedAreas = climbingAreaIds.length
     ? await prisma.climbingArea.findMany({
-        where: { id: { in: climbingAreaIds } },
+        where: { id: { in: climbingAreaIds }, reviewStatus: "reviewed" },
         select: { id: true }
       })
     : [];
@@ -115,7 +116,7 @@ export async function createTripAction(formData: FormData) {
     ? await prisma.trip.create({
         data: {
           name: data.name,
-          notes: data.notes,
+          notes: data.notes ?? null,
           startDate,
           endDate,
           userId: user.id,
@@ -130,7 +131,7 @@ export async function createTripAction(formData: FormData) {
     : await prisma.trip.create({
         data: {
           name: data.name,
-          notes: data.notes,
+          notes: data.notes ?? null,
           startDate,
           endDate,
           userId: user.id
@@ -176,7 +177,7 @@ export async function updateTripAction(formData: FormData) {
     },
     data: {
       name: data.name,
-      notes: data.notes,
+      notes: data.notes ?? null,
       startDate,
       endDate,
       updatedAt: new Date()
@@ -209,6 +210,12 @@ export async function addStopAction(formData: FormData) {
   if (trip.stops.some((stop) => stop.climbingAreaId === climbingAreaId)) {
     redirect(`/trips/${tripId}?notice=duplicate-area#add-stop`);
   }
+
+  const area = await prisma.climbingArea.findUnique({
+    where: { id: climbingAreaId, reviewStatus: "reviewed" },
+    select: { id: true }
+  });
+  if (!area) redirect(`/trips/${tripId}`);
 
   await prisma.tripStop.create({
     data: {
@@ -244,7 +251,7 @@ export async function updateStopNotesAction(formData: FormData) {
 
   await prisma.tripStop.update({
     where: { id: stopId },
-    data: { notes, plannedDate }
+    data: { notes: notes ?? null, plannedDate }
   });
   await prisma.trip.update({ where: { id: tripId }, data: { updatedAt: new Date() } });
   revalidatePath(`/trips/${tripId}`);
@@ -344,7 +351,10 @@ export async function selectCampgroundAction(formData: FormData) {
       climbingAreaId_campgroundId: {
         climbingAreaId: stop.climbingAreaId,
         campgroundId
-      }
+      },
+      reviewStatus: "reviewed",
+      campground: { reviewStatus: "reviewed" },
+      climbingArea: { reviewStatus: "reviewed" }
     }
   });
 
@@ -485,8 +495,8 @@ export async function acknowledgeImportSyncAction(formData: FormData) {
       where: { id: candidate.id },
       data: {
         syncStatus: "UNCHANGED",
-        previousRawPayload: undefined,
-        previousMappedPayload: undefined,
+        previousRawPayload: Prisma.DbNull,
+        previousMappedPayload: Prisma.DbNull,
         syncChangedFields: [],
         syncReason: "Source changes reviewed; canonical editorial fields were preserved.",
         syncDecisionMethod: "admin",

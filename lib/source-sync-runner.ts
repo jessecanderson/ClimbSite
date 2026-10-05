@@ -51,13 +51,17 @@ export async function runSourceSyncProfile(profileId: string) {
 }
 
 export async function runNextScheduledSourceSync() {
+  const now = Date.now();
+  const staleBefore = new Date(now - 20 * 60 * 1000);
   const profiles = await prisma.sourceSyncProfile.findMany({
-    where: { enabled: true, status: { in: ["IDLE", "FAILED"] } },
+    where: { enabled: true, OR: [
+      { status: { in: ["IDLE", "FAILED"] } },
+      { status: "RUNNING", lastStartedAt: { lt: staleBefore } }
+    ] },
     orderBy: [{ lastFinishedAt: { sort: "asc", nulls: "first" } }, { name: "asc" }]
   });
-  const now = Date.now();
   const profile = profiles.find((candidate) =>
-    !candidate.lastFinishedAt || now - candidate.lastFinishedAt.getTime() >= candidate.refreshIntervalDays * 86_400_000
+    candidate.status === "RUNNING" || !candidate.lastFinishedAt || now - candidate.lastFinishedAt.getTime() >= candidate.refreshIntervalDays * 86_400_000
   );
   if (!profile) return null;
   await runSourceSyncProfile(profile.id);

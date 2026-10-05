@@ -336,7 +336,7 @@ export async function runOpenBetaImport(options: OpenBetaImportOptions) {
           const mappedPayload = toJson(mappedPayloadForArea(row.area, row.parentName));
           const existing = await prisma.importCandidate.findUnique({
             where: { sourceId_entityType_externalId: { sourceId: source.id, entityType: "CLIMBING_AREA", externalId } },
-            select: { rawPayload: true, mappedPayload: true, status: true }
+            select: { rawPayload: true, mappedPayload: true, status: true, syncStatus: true, previousRawPayload: true, previousMappedPayload: true }
           });
           const sync = analyzeImportSync(existing, rawPayload, mappedPayload);
 
