@@ -60,3 +60,38 @@ Open `/admin/content` for the editorial publication workflow.
 - ClimbSite does not publish route names, grades, or guidebook-style details.
 - ClimbSite does not sell reservations.
 - Always verify route, access, permit, closure, and booking details with the linked source sites.
+
+## Automated regression checks
+
+```bash
+corepack pnpm test
+corepack pnpm typecheck
+corepack pnpm build
+```
+
+The optional database concurrency test creates its own temporary account and trip, checks real
+Postgres row locking, and removes those records in `finally`. Load your test database environment first:
+
+```bash
+RUN_DB_TESTS=1 node --import tsx --test tests/trip-concurrency.test.ts
+```
+
+## Alpha planning checks
+
+- Submit a trip with reversed dates. Confirm the inline end-date error appears and the name/notes remain.
+- Correct the dates and save. Confirm success is reported only after the write succeeds.
+- Save a reviewed subarea from its detail page and from the add-stop picker.
+- Select multiple destination stops. Confirm camp coverage and missing drives are explicit; full
+  coverage sorts before partial coverage, then the longest drive and total drive time break ties.
+- Try a climbing date outside the trip range. Confirm the server rejects it and retains the note.
+- Try shrinking a trip around existing stop dates. Confirm the conflict is explained before saving.
+- Select, replace, and clear camping. If a camp relationship is returned to review, confirm the
+  selection says "Needs reconfirmation", is excluded from progress/map, and is flagged in copied text.
+- Open the delete dialog with a keyboard. Confirm focus starts on "Keep trip", Tab stays inside,
+  Escape closes it, and focus returns to the trigger.
+- At a narrow phone width, confirm navigation wraps, buttons are reachable, and inputs remain legible.
+- Open "Report incorrect information" on an area/camp and "Send alpha feedback" on a trip.
+  Confirm the source page is preserved through sign-in and the report is saved in `/admin/feedback`.
+- Resolve and reopen a feedback report as an admin. Confirm ordinary users cannot open the queue.
+- Confirm sign-in retains the exact trip/destination URL and has a pending state. Real OAuth and
+  magic-link delivery are a separate auth-workflow verification pass.

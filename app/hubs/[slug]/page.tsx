@@ -1,3 +1,4 @@
+import { FeedbackLink } from "@/components/FeedbackLink";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BadgeCheck, ExternalLink, Mountain, ShieldCheck, Tent } from "lucide-react";
@@ -27,6 +28,7 @@ export default async function DestinationDetailPage({ params }: { params: Promis
         <div className="destination-intro">
           <p className="eyebrow">{hub.region} · Destination field guide</p>
           <h1>{hub.name}</h1>
+          <FeedbackLink context={`/hubs/${hub.slug}`} subject={`Destination feedback: ${hub.name}`} />
           <p className="lead">{hub.summary}</p>
           <div className="destination-stats large"><span><strong>{hub.areas.length}</strong> climbing areas</span><span><strong>{areaCamps.size}</strong> nearby camps</span></div>
           {hub.seasonNotes ? <article className="season-panel"><span>Best timing</span><p>{hub.seasonNotes}</p></article> : null}

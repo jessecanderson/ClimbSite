@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useActionState, useContext, useEffect, useId, useState } from "react";
+import { createContext, useActionState, useContext, useEffect, useId, useMemo, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import type { FormState } from "@/lib/form-state";
 
@@ -13,12 +13,14 @@ export function ActionForm({ action, children, className, resetOnSuccess = false
   resetOnSuccess?: boolean;
 }) {
   const [state, submit, pending] = useActionState(async (_previous: FormState, formData: FormData) => action(formData), {});
+  // Pending rerenders must not reset a draft after an earlier successful submission.
+  const context = useMemo(() => ({ ...state, resetOnSuccess }), [state, resetOnSuccess]);
   return (
-    <FormContext.Provider value={{ ...state, resetOnSuccess }}>
+    <FormContext.Provider value={context}>
       <form action={submit} className={className} aria-busy={pending}>
         {state.errors ? <p className="form-message form-message-error" role="alert">{state.errors.form ?? "Please check the highlighted fields. Your changes have not been saved."}</p> : null}
         {children}
-        {state.success && state.message ? <p className="form-message" role="status">{state.message}</p> : null}
+        {!pending && state.success && state.message ? <p className="form-message" role="status">{state.message}</p> : null}
       </form>
     </FormContext.Provider>
   );

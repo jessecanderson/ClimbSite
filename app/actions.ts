@@ -8,6 +8,7 @@ import { signIn, signOut } from "@/auth";
 import { requireAdmin } from "@/lib/admin";
 import { getCurrentUser } from "@/lib/auth";
 import { formDate, FormValidationError, isDateInTrip, validationState, type FormState } from "@/lib/form-state";
+import { safeLocalPath } from "@/lib/navigation";
 import { withTripLock } from "@/lib/trip-mutations";
 import { importHierarchy, isImportCandidateInScope, suggestedImportTarget } from "@/lib/import-matching";
 import { prisma } from "@/lib/prisma";
@@ -24,13 +25,6 @@ const stopNotesSchema = z.string().trim().max(500).optional();
 const moveDirectionSchema = z.enum(["up", "down"]);
 const sourceRunnerSchema = z.enum(sourceRunnerOptions);
 
-function safeRedirectPath(value: FormDataEntryValue | null, fallback = "/trips") {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
-    return fallback;
-  }
-
-  return value;
-}
 
 async function requireUser() {
   const user = await getCurrentUser();
@@ -44,7 +38,7 @@ async function requireUser() {
 
 export async function loginAction(formData: FormData) {
   const email = emailSchema.parse(formData.get("email"));
-  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
+  const redirectTo = safeLocalPath(formData.get("redirectTo"));
   const magicLinkEnabled = Boolean(process.env.AUTH_RESEND_KEY && process.env.AUTH_EMAIL_FROM);
   const emailFallbackEnabled =
     process.env.AUTH_EMAIL_FALLBACK === "true" ||
@@ -62,7 +56,7 @@ export async function loginAction(formData: FormData) {
 
 export async function oauthLoginAction(formData: FormData) {
   const provider = authProviderSchema.parse(formData.get("provider"));
-  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
+  const redirectTo = safeLocalPath(formData.get("redirectTo"));
   await signIn(provider, { redirectTo });
 }
 

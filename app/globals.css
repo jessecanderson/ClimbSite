@@ -1139,3 +1139,31 @@ textarea.input {
 
 .field-error { color: #94362d; display: block; font-size: .85rem; margin-top: 4px; }
 .input[aria-invalid="true"] { border-color: #94362d; }
+
+.feedback-link { display: inline-flex; align-items: center; gap: 6px; margin-block: 8px; }
+.feedback-page { max-width: 800px; }
+.feedback-context { overflow-wrap: anywhere; }
+.feedback-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+.camp-coverage { color: var(--green-dark); font-weight: 700; }
+.camp-drive-summary { font-size: .85rem; }
+.delete-dialog { border: 0; margin: auto; max-height: 90dvh; overflow: auto; width: min(520px, calc(100vw - 32px)); }
+.delete-dialog::backdrop { background: rgba(20, 30, 24, .55); }
+.skip-link { background: white; color: var(--green-dark); padding: 12px; position: fixed; left: 12px; top: -100px; z-index: 2000; }
+.skip-link:focus { top: 12px; }
+@media (max-width: 680px) {
+  .nav-links { flex-wrap: wrap; justify-content: flex-start; overflow-x: visible; }
+  .stop-actions { flex-wrap: wrap; }
+  .stop-actions .ghost-button, .actions .button, .actions .ghost-button, .actions .danger-button { min-height: 44px; }
+  .form-row { grid-template-columns: 1fr; }
+  .input { font-size: 16px; }
+  .trip-stop-summary { flex-wrap: wrap; }
+}
+
+.feedback-report { overflow-wrap: anywhere; }
+
+.two-col > *, .destination-hero > *, .camp-comparison-row > * { min-width: 0; }
+.page h1, .trip-stop-name { overflow-wrap: anywhere; }
+@media (max-width: 680px) {
+  .two-col, .hero, .grid, .destination-hero, .camp-comparison-row { grid-template-columns: minmax(0, 1fr); }
+  .map-frame { aspect-ratio: auto; height: 320px; min-height: 320px; width: 100%; }
+}

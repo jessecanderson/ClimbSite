@@ -289,3 +289,21 @@ ClimbSite does not host climbing guidebook content, sell reservations, or replac
 Public pages should always make source attribution visible and link users out for route, access,
 permit, closure, reservation, and booking details. ClimbSite stores planning summaries and
 campground-to-area logistics; it is not the source of truth for climbing or camping data.
+
+## Alpha feedback
+
+Signed-in users can submit contextual reports at `/feedback`. Area and campground reports include
+an internal page link; trip feedback includes the trip link. Admins review, resolve, and reopen
+reports at `/admin/feedback`. Submissions are limited to five per account per ten minutes.
+
+This feature adds the `Feedback` model. For a new development database, use the normal `db:push`
+workflow. For an existing database that does not yet have the feedback table, apply the additive SQL
+once before deploying this code, with the target database environment loaded:
+
+```bash
+corepack pnpm exec prisma db execute --file prisma/add-feedback.sql --schema prisma/schema.prisma
+corepack pnpm db:generate
+```
+
+The SQL creates only the feedback table, its indexes, and its account reference. It is a one-time
+installation script; do not rerun it after the table exists.

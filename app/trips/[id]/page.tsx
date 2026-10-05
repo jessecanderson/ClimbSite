@@ -1,3 +1,6 @@
+import { isDateInTrip } from "@/lib/form-state";
+import { FeedbackLink } from "@/components/FeedbackLink";
+import { loginPath } from "@/lib/navigation";
 import { ActionForm, FormInput, FormTextarea, FormSelect } from "@/components/ActionForm";
 import { selectedCampLink, campSelectionStatus } from "@/lib/trip-planning";
 import Link from "next/link";
@@ -37,13 +40,13 @@ export default async function TripDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string; notice?: string }>;
 }) {
+  const { id } = await params;
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login");
+    redirect(loginPath(`/trips/${id}`));
   }
 
-  const { id } = await params;
   const { error, notice } = await searchParams;
   const [trip, areas] = await Promise.all([getTripForUser(id, user.id), getPlanningAreas()]);
 
@@ -56,7 +59,7 @@ export default async function TripDetailPage({
   const corePlanItems = [
     { label: "Trip dates set", done: Boolean(trip.startDate && trip.endDate) },
     { label: "Stops added", done: trip.stops.length > 0 },
-    { label: "Stop dates assigned", done: trip.stops.length > 0 && trip.stops.every((stop) => stop.plannedDate) },
+    { label: "Stop dates fit the trip", done: trip.stops.length > 0 && trip.stops.every((stop) => stop.plannedDate && isDateInTrip(stop.plannedDate, trip.startDate, trip.endDate)) },
     { label: "Camps selected", done: trip.stops.length > 0 && missingCampCount === 0 }
   ];
   const completedCoreItems = corePlanItems.filter((item) => item.done).length;
@@ -135,6 +138,7 @@ export default async function TripDetailPage({
           </div>
           <div className="actions">
             <ShareTripButton summary={shareSummary} />
+            <FeedbackLink context={`/trips/${trip.id}`} subject={`Trip feedback: ${trip.name}`} />
             <DeleteTripButton tripId={trip.id} tripName={trip.name} />
           </div>
         </div>
@@ -283,6 +287,7 @@ export default async function TripDetailPage({
                           </ActionForm>
                         </div>
                       </div>
+                      {!isDateInTrip(stop.plannedDate, trip.startDate, trip.endDate) ? <p className="form-message form-message-error">This climbing date falls outside the trip. Update the stop date or widen the trip dates.</p> : null}
                       <p>{stop.climbingArea.approach}</p>
                       <div className="card-actions">
                         <Link className="ghost-button" href={`/areas/${stop.climbingArea.slug}`}>

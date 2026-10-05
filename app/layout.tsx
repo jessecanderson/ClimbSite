@@ -18,6 +18,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en">
       <body>
         <div className="shell">
+          <a className="skip-link" href="#main-content">Skip to content</a>
           <nav className="nav">
             <Link className="brand" href="/">
               <span className="brand-mark">
@@ -42,6 +43,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                       Admin
                     </Link>
                   ) : null}
+                  {user.role === "ADMIN" ? (
+                    <Link className="nav-link" href="/admin/feedback">Feedback</Link>
+                  ) : null}
                   <Link className="nav-link" href="/account" title={user.email ?? "Account"}>
                     <CircleUser size={17} />
                     Account
@@ -61,7 +65,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               )}
             </div>
           </nav>
-          {children}
+          <div id="main-content" tabIndex={-1}>{children}</div>
           <footer className="site-footer">
             <div className="footer-grid">
               <div>
@@ -87,6 +91,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
               <div>
                 <h3>Contact</h3>
+                <Link className="footer-link" href="/feedback">Send alpha feedback</Link>
                 <a className="footer-link" href="mailto:hello@climbsite.app">
                   <Mail size={16} />
                   hello@climbsite.app

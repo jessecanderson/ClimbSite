@@ -1,3 +1,4 @@
+import { loginPath } from "@/lib/navigation";
 import Link from "next/link";
 import { CalendarDays, Plus, Route } from "lucide-react";
 import { DeleteTripButton } from "@/components/DeleteTripButton";
@@ -10,7 +11,7 @@ export default async function TripsPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login");
+    redirect(loginPath("/trips"));
   }
 
   const trips = await getTripsForUser(user.id);

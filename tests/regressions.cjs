@@ -6,7 +6,7 @@ const ts = require('typescript');
 function load(file, mocks = {}) {
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-  vm.runInNewContext(code, { exports, require: name => name in mocks ? mocks[name] : require(name), Date, FormData, URLSearchParams, process, Set, console });
+  vm.runInNewContext(code, { exports, require: name => name in mocks ? mocks[name] : require(name), Date, FormData, URL, URLSearchParams, process, Set, console });
   return exports;
 }
 const dates = load('lib/dates.ts');
@@ -41,7 +41,7 @@ function actions(prisma) {
     'next/cache': { revalidatePath() {} }, '@/auth': {}, '@/lib/admin': { requireAdmin: async () => ({}) },
     '@/lib/auth': { getCurrentUser: async () => ({ id: 'user' }) }, '@/lib/form-state': formState,
     '@/lib/trip-mutations': load('lib/trip-mutations.ts', {'./prisma': {prisma: {...prisma, $transaction: async fn => fn({...prisma, $queryRaw: async () => [{id:tripId}]})}}}),
-    '@/lib/import-matching': {}, '@/lib/prisma': { prisma },
+    '@/lib/navigation': load('lib/navigation.ts'), '@/lib/import-matching': {}, '@/lib/prisma': { prisma },
     '@/lib/source-sync-runner': { sourceRunnerOptions: ['RIDB_CAMPGROUNDS'] }
   });
 }
@@ -165,4 +165,45 @@ test('planning query includes reviewed subareas while discovery stays top-level'
   assert.equal(queries[0].where.reviewStatus,'reviewed');
   assert.equal(queries[0].where.parentAreaId,undefined);
   assert.equal(queries[1].where.parentAreaId,null);
+});
+const navigation = load('lib/navigation.ts');
+test('return URLs preserve local planning intent and reject external redirects', () => {
+  assert.equal(navigation.safeLocalPath('/trips/new?area=muir-valley&hub=red-river-gorge'),'/trips/new?area=muir-valley&hub=red-river-gorge');
+  for (const path of ['https://evil.example','//evil.example','/\\evil.example','/\n/evil.example']) assert.equal(navigation.safeLocalPath(path),'/trips');
+  assert.equal(navigation.loginPath('/trips/test'),'/login?callbackUrl=%2Ftrips%2Ftest');
+});
+const feedbackValidation = load('lib/feedback.ts',{'./navigation':navigation});
+function feedbackActions(prisma, user = {id:'user'}) {
+  return load('app/feedback-actions.ts',{
+    'next/cache':{revalidatePath(){}},'@/lib/auth':{getCurrentUser:async () => user},'@/lib/admin':{requireAdmin:async () => ({})},
+    '@/lib/prisma':{prisma},'@/lib/feedback':feedbackValidation,'@/lib/navigation':navigation,'@/lib/form-state':formState
+  });
+}
+test('feedback validation names invalid fields and requires sign-in', async () => {
+  const api = feedbackActions({});
+  const state = await api.submitFeedbackAction(form({kind:'DATA',subject:'Camp',message:'short',context:'/areas/test'}));
+  assert.match(state.errors.message,/10 characters/);
+  const external = await api.submitFeedbackAction(form({kind:'DATA',subject:'Camp',message:'Incorrect location',context:'https://evil.example'}));
+  assert.match(external.errors.context,/ClimbSite page/);
+  const signedOut = await feedbackActions({},null).submitFeedbackAction(form({}));
+  assert.match(signedOut.errors.form,/Sign in again/);
+});
+test('feedback stores context and rate limits repeated reports', async () => {
+  let saved, count = 0;
+  const tx = {$queryRaw:async () => [],feedback:{count:async () => count,create:async ({data}) => {saved=data;}}};
+  const api = feedbackActions({$transaction:async fn => fn(tx)});
+  const report = form({kind:'DATA',subject:'Camp location',message:'The parking pin is misplaced.',context:'/areas/test#camp-123'});
+  assert.equal((await api.submitFeedbackAction(report)).success,true);
+  assert.equal(saved.context,'/areas/test#camp-123');
+  assert.equal(saved.userId,'user');
+  count=5; saved=null;
+  assert.match((await api.submitFeedbackAction(report)).errors.form,/10 minutes/);
+  assert.equal(saved,null);
+});
+test('feedback status changes require admin authorization before writing', async () => {
+  const api = load('app/feedback-actions.ts',{
+    'next/cache':{revalidatePath(){}},'@/lib/auth':{},'@/lib/admin':{requireAdmin:async () => {throw new Error('not admin');}},
+    '@/lib/prisma':{prisma:{feedback:{update:async () => assert.fail('must not change status')}}},'@/lib/feedback':feedbackValidation,'@/lib/navigation':navigation,'@/lib/form-state':formState
+  });
+  await assert.rejects(api.updateFeedbackStatusAction(form({id:areaId,status:'RESOLVED'})),/not admin/);
 });

@@ -1,3 +1,4 @@
+import { FeedbackLink } from "@/components/FeedbackLink";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BadgeCheck, Clock, ExternalLink, MapPin, Route, Tent } from "lucide-react";
@@ -43,6 +44,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
         <div>
           <p className="eyebrow">{area.region}</p>
           <h1>{area.name}</h1>
+          <FeedbackLink context={`/areas/${area.slug}`} subject={`Area information: ${area.name}`} kind="DATA">Report incorrect information</FeedbackLink>
           <p className="lead">{area.summary}</p>
           <div className="meta-row area-status-row">
             <span className="pill">
@@ -128,7 +130,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
 
         <div className="grid">
           {area.campgroundLinks.map((link) => (
-            <article className="card" key={link.id}>
+            <article className="card" key={link.id} id={`camp-${link.campground.id}`}>
               <div className="meta-row">
                 <span className="pill">
                   <BadgeCheck size={14} />
@@ -139,6 +141,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
                 ) : null}
               </div>
               <h3>{link.campground.name}</h3>
+              <FeedbackLink context={`/areas/${area.slug}#camp-${link.campground.id}`} subject={`Camp information: ${link.campground.name}`} kind="DATA">Report incorrect information</FeedbackLink>
               <p>{link.campground.summary}</p>
               <div className="meta-row">
                 <span className="pill">

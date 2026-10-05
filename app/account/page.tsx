@@ -1,6 +1,7 @@
+import { loginPath } from "@/lib/navigation";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, CreditCard, Mail, Route, ShieldCheck } from "lucide-react";
+import { CalendarDays, Mail, Route, ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getTripsForUser } from "@/lib/queries";
 
@@ -8,7 +9,7 @@ export default async function AccountPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login");
+    redirect(loginPath("/account"));
   }
 
   const trips = await getTripsForUser(user.id);
@@ -21,8 +22,7 @@ export default async function AccountPage() {
           <p className="eyebrow">Account</p>
           <h1>Your ClimbSite account.</h1>
           <p className="lead">
-            Account identity stays separate from trips and future billing, so sign-in methods can
-            change without losing saved plans.
+            Your saved trips and planning notes are kept with this account.
           </p>
           <div className="meta-row">
             <span className="pill">
@@ -36,12 +36,7 @@ export default async function AccountPage() {
           </div>
         </div>
 
-        <div className="card">
-          <CreditCard color="#2f5f4b" />
-          <h3>Billing</h3>
-          <p>Subscription billing is not connected yet.</p>
-          <span className="pill">Planned for Stripe customer and subscription records</span>
-        </div>
+
       </section>
 
       <section className="section">
