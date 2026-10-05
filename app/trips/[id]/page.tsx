@@ -1,3 +1,5 @@
+import { ActionForm, FormInput, FormTextarea, FormSelect } from "@/components/ActionForm";
+import { selectedCampLink, campSelectionStatus } from "@/lib/trip-planning";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
@@ -12,12 +14,12 @@ import {
   Trash2
 } from "lucide-react";
 import {
-  addStopAction,
-  moveStopAction,
-  removeStopAction,
-  selectCampgroundAction,
-  updateStopNotesAction,
-  updateTripAction
+  addStopFormAction,
+  moveStopFormAction,
+  removeStopFormAction,
+  selectCampgroundFormAction,
+  updateStopFormAction,
+  updateTripFormAction
 } from "@/app/actions";
 import { DeleteTripButton } from "@/components/DeleteTripButton";
 import { ShareTripButton } from "@/components/ShareTripButton";
@@ -49,7 +51,7 @@ export default async function TripDetailPage({
     notFound();
   }
 
-  const selectedCampCount = trip.stops.filter((stop) => stop.selectedCampgroundId).length;
+  const selectedCampCount = trip.stops.filter((stop) => campSelectionStatus(stop) === "selected").length;
   const missingCampCount = trip.stops.length - selectedCampCount;
   const corePlanItems = [
     { label: "Trip dates set", done: Boolean(trip.startDate && trip.endDate) },
@@ -69,9 +71,7 @@ export default async function TripDetailPage({
     trip.notes ? `Notes: ${trip.notes}` : null,
     "",
     ...trip.stops.map((stop) => {
-      const selectedLink = stop.climbingArea.campgroundLinks.find(
-        (link) => link.campgroundId === stop.selectedCampgroundId
-      );
+      const selectedLink = selectedCampLink(stop);
 
       return [
         `Stop ${stop.order}: ${stop.climbingArea.name}`,
@@ -79,7 +79,7 @@ export default async function TripDetailPage({
         `Area source: ${stop.climbingArea.sourceUrl ?? "No source link saved"}`,
         selectedLink
           ? `Camp: ${selectedLink.campground.name} (${selectedLink.driveMinutes} min, ${selectedLink.miles} mi)`
-          : "Camp: Not selected",
+          : stop.selectedCampgroundId ? `Camp: ${stop.selectedCampground?.name ?? "Previous selection"} — needs reconfirmation` : "Camp: Not selected",
         selectedLink?.campground.reservationUrl
           ? `Camp details: ${selectedLink.campground.reservationUrl}`
           : null,
@@ -100,7 +100,7 @@ export default async function TripDetailPage({
       detail: `Stop ${stop.order}`,
       href: `/areas/${stop.climbingArea.slug}`
     },
-    ...(stop.selectedCampground
+    ...(selectedCampLink(stop) && stop.selectedCampground
       ? [
           {
             name: stop.selectedCampground.name,
@@ -191,9 +191,7 @@ export default async function TripDetailPage({
           ) : (
             <div className="list">
               {trip.stops.map((stop) => {
-                const selectedLink = stop.climbingArea.campgroundLinks.find(
-                  (link) => link.campgroundId === stop.selectedCampgroundId
-                );
+                const selectedLink = selectedCampLink(stop);
 
                 return (
                   <details className="trip-stop" name="trip-stops" key={stop.id} open={trip.stops.length === 1}>
@@ -226,7 +224,7 @@ export default async function TripDetailPage({
                         ) : (
                           <>
                             <Tent size={15} />
-                            Camp needed
+                            {stop.selectedCampgroundId ? "Needs reconfirmation" : "Camp needed"}
                           </>
                         )}
                       </span>
@@ -245,7 +243,7 @@ export default async function TripDetailPage({
                           </span>
                         </div>
                         <div className="stop-actions">
-                          <form action={moveStopAction}>
+                          <ActionForm action={moveStopFormAction}>
                             <input type="hidden" name="tripId" value={trip.id} />
                             <input type="hidden" name="stopId" value={stop.id} />
                             <SubmitButton
@@ -259,8 +257,8 @@ export default async function TripDetailPage({
                             >
                               <ArrowUp size={17} />
                             </SubmitButton>
-                          </form>
-                          <form action={moveStopAction}>
+                          </ActionForm>
+                          <ActionForm action={moveStopFormAction}>
                             <input type="hidden" name="tripId" value={trip.id} />
                             <input type="hidden" name="stopId" value={stop.id} />
                             <SubmitButton
@@ -274,15 +272,15 @@ export default async function TripDetailPage({
                             >
                               <ArrowDown size={17} />
                             </SubmitButton>
-                          </form>
-                          <form action={removeStopAction}>
+                          </ActionForm>
+                          <ActionForm action={removeStopFormAction}>
                           <input type="hidden" name="tripId" value={trip.id} />
                           <input type="hidden" name="stopId" value={stop.id} />
                           <SubmitButton className="ghost-button" pendingLabel="Removing…" title="Remove stop">
                             <Trash2 size={17} />
                             Remove
                           </SubmitButton>
-                          </form>
+                          </ActionForm>
                         </div>
                       </div>
                       <p>{stop.climbingArea.approach}</p>
@@ -297,12 +295,12 @@ export default async function TripDetailPage({
                           </a>
                         ) : null}
                       </div>
-                      <form className="form compact-form" action={updateStopNotesAction}>
+                      <ActionForm className="form compact-form" action={updateStopFormAction}>
                         <input type="hidden" name="tripId" value={trip.id} />
                         <input type="hidden" name="stopId" value={stop.id} />
                         <label className="field">
                           <span>Climbing date</span>
-                          <input
+                          <FormInput
                             className="input"
                             type="date"
                             name="plannedDate"
@@ -313,9 +311,9 @@ export default async function TripDetailPage({
                         </label>
                         <label className="field">
                           <span>Stop notes</span>
-                          <textarea
+                          <FormTextarea
                             className="input"
-                            name="notes"
+                            name="notes" maxLength={500}
                             defaultValue={stop.notes ?? ""}
                             placeholder="Routes to research, partner notes, weather backup..."
                           />
@@ -323,19 +321,26 @@ export default async function TripDetailPage({
                         <SubmitButton
                           className="ghost-button"
                           pendingLabel="Saving…"
-                          successLabel="Notes saved"
                         >
                           <Save size={17} />
                           Save notes
                         </SubmitButton>
-                      </form>
+                      </ActionForm>
 
                       {!selectedLink ? (
-                        <div className="empty camp-prompt">Choose a campground for this stop.</div>
+                        <div className="empty camp-prompt">{stop.selectedCampgroundId ? `${stop.selectedCampground?.name ?? "Your previous camp"} needs reconfirmation because its reviewed relationship is no longer available. Choose another camp or clear the selection.` : "Choose a campground for this stop."}</div>
                       ) : null}
 
+                      {stop.selectedCampgroundId ? (
+                        <ActionForm action={selectCampgroundFormAction}>
+                          <input type="hidden" name="tripId" value={trip.id} />
+                          <input type="hidden" name="stopId" value={stop.id} />
+                          <SubmitButton className="ghost-button" pendingLabel="Clearing…">Clear camp selection</SubmitButton>
+                        </ActionForm>
+                      ) : null}
+                      {stop.climbingArea.reviewStatus !== "reviewed" ? <p className="form-message form-message-error">This climbing area is being reviewed. Verify current access at the source before using this stop.</p> : null}
                       <div className="list">
-                        {stop.climbingArea.campgroundLinks.map((link) => (
+                        {(stop.climbingArea.reviewStatus === "reviewed" ? stop.climbingArea.campgroundLinks : []).map((link) => (
                           <div
                             className={`camp-option${
                               link.campgroundId === stop.selectedCampgroundId
@@ -364,7 +369,7 @@ export default async function TripDetailPage({
                               <p>{link.campground.campingFit}</p>
                             </details>
                             <div className="actions">
-                              <form action={selectCampgroundAction}>
+                              <ActionForm action={selectCampgroundFormAction}>
                                 <input type="hidden" name="tripId" value={trip.id} />
                                 <input type="hidden" name="stopId" value={stop.id} />
                                 <input type="hidden" name="campgroundId" value={link.campground.id} />
@@ -382,7 +387,7 @@ export default async function TripDetailPage({
                                     ? "Selected"
                                     : "Use this camp"}
                                 </SubmitButton>
-                              </form>
+                              </ActionForm>
                               {link.campground.reservationUrl ? (
                                 <a
                                   className="ghost-button"
@@ -421,27 +426,27 @@ export default async function TripDetailPage({
               </p>
             ) : null}
             {availableAreas.length > 0 ? (
-              <form className="form" action={addStopAction}>
+              <ActionForm className="form" action={addStopFormAction} resetOnSuccess>
               <input type="hidden" name="tripId" value={trip.id} />
               <label className="field">
                 <span>Climbing area</span>
-                <select className="input" name="climbingAreaId" required>
+                <FormSelect className="input" name="climbingAreaId" defaultValue={availableAreas[0]?.id} required>
                   {availableAreas.map((area) => (
                     <option value={area.id} key={area.id}>
                       {area.name}
                     </option>
                   ))}
-                </select>
+                </FormSelect>
               </label>
               <label className="field">
                 <span>Stop notes</span>
-                <textarea className="input" name="notes" placeholder="Routes, rest-day ideas, partner notes..." />
+                <FormTextarea className="input" name="notes" maxLength={500} placeholder="Routes, rest-day ideas, partner notes..." />
               </label>
               <SubmitButton pendingLabel="Adding stop…">
                 <Plus size={17} />
                 Add stop
               </SubmitButton>
-              </form>
+              </ActionForm>
             ) : (
               <p className="form-message">Every available area is already in this trip.</p>
             )}
@@ -454,16 +459,16 @@ export default async function TripDetailPage({
 
           <details className="card settings-card">
             <summary>Edit trip name and notes</summary>
-            <form className="form" action={updateTripAction}>
+            <ActionForm className="form" action={updateTripFormAction}>
               <input type="hidden" name="tripId" value={trip.id} />
               <label className="field">
                 <span>Trip name</span>
-                <input className="input" name="name" required defaultValue={trip.name} />
+                <FormInput className="input" name="name" maxLength={80} required defaultValue={trip.name} />
               </label>
               <div className="form-row">
                 <label className="field">
                   <span>Start date</span>
-                  <input
+                  <FormInput
                     className="input"
                     type="date"
                     name="startDate"
@@ -472,7 +477,7 @@ export default async function TripDetailPage({
                 </label>
                 <label className="field">
                   <span>End date</span>
-                  <input
+                  <FormInput
                     className="input"
                     type="date"
                     name="endDate"
@@ -487,13 +492,13 @@ export default async function TripDetailPage({
               ) : null}
               <label className="field">
                 <span>Notes</span>
-                <textarea className="input" name="notes" defaultValue={trip.notes ?? ""} />
+                <FormTextarea className="input" name="notes" maxLength={1000} defaultValue={trip.notes ?? ""} />
               </label>
-              <SubmitButton pendingLabel="Saving trip…" successLabel="Trip saved">
+              <SubmitButton pendingLabel="Saving trip…">
                 <Save size={17} />
                 Save trip
               </SubmitButton>
-            </form>
+            </ActionForm>
           </details>
 
           <article className="planning-note">

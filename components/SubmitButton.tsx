@@ -54,7 +54,7 @@ export function SubmitButton({
       aria-disabled={disabled || pending}
       aria-label={ariaLabel}
       className={className}
-      disabled={disabled}
+      disabled={disabled || pending}
       name={name}
       onClick={(event) => {
         if (pending) event.preventDefault();

@@ -1136,3 +1136,6 @@ textarea.input {
     grid-template-columns: 1fr;
   }
 }
+
+.field-error { color: #94362d; display: block; font-size: .85rem; margin-top: 4px; }
+.input[aria-invalid="true"] { border-color: #94362d; }

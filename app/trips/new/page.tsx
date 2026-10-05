@@ -1,4 +1,5 @@
-import { createTripAction } from "@/app/actions";
+import { ActionForm, FormInput, FormTextarea } from "@/components/ActionForm";
+import { createTripFormAction } from "@/app/actions";
 import { getCurrentUser } from "@/lib/auth";
 import { getAreas, getHubBySlug } from "@/lib/queries";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -65,7 +66,7 @@ export default async function NewTripPage({
           ) : null}
         </div>
 
-        <form className="card form" action={createTripAction}>
+        <ActionForm className="card form" action={createTripFormAction}>
           {selectedAreas.map((selectedArea) => (
             <span key={selectedArea.id}>
               <input type="hidden" name="climbingAreaId" value={selectedArea.id} />
@@ -80,10 +81,11 @@ export default async function NewTripPage({
           ) : null}
           <label className="field">
             <span>Trip name</span>
-            <input
+            <FormInput
               className="input"
               required
               name="name"
+              maxLength={80}
               placeholder="Spring RRG weekend"
               defaultValue={selectedHub ? `${selectedHub.name} trip` : ""}
             />
@@ -91,18 +93,19 @@ export default async function NewTripPage({
           <div className="form-row">
             <label className="field">
               <span>Start date</span>
-              <input className="input" type="date" name="startDate" />
+              <FormInput className="input" type="date" name="startDate" />
             </label>
             <label className="field">
               <span>End date</span>
-              <input className="input" type="date" name="endDate" />
+              <FormInput className="input" type="date" name="endDate" />
             </label>
           </div>
           <label className="field optional-field">
             <span>Optional notes</span>
-            <textarea
+            <FormTextarea
               className="input"
               name="notes"
+              maxLength={1000}
               placeholder="Partners, goals, weather constraints..."
             />
           </label>
@@ -114,7 +117,7 @@ export default async function NewTripPage({
                 ? `Create trip with ${selectedAreas.length} stops`
                 : "Create trip"}
           </SubmitButton>
-        </form>
+        </ActionForm>
       </section>
     </main>
   );
