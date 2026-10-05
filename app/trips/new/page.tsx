@@ -1,7 +1,7 @@
 import { ActionForm, FormInput, FormTextarea } from "@/components/ActionForm";
 import { createTripFormAction } from "@/app/actions";
 import { getCurrentUser } from "@/lib/auth";
-import { getAreas, getHubBySlug } from "@/lib/queries";
+import { getPlanningAreas, getHubBySlug } from "@/lib/queries";
 import { SubmitButton } from "@/components/SubmitButton";
 import { BadgeCheck, MapPin, Route } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -14,7 +14,7 @@ export default async function NewTripPage({
   const { area, hub: hubSlug, error } = await searchParams;
   const requestedAreaSlugs = [...new Set(Array.isArray(area) ? area : area ? [area] : [])];
   const [areas, selectedHub] = await Promise.all([
-    getAreas(),
+    getPlanningAreas(),
     hubSlug ? getHubBySlug(hubSlug) : Promise.resolve(null)
   ]);
   const selectedAreas = requestedAreaSlugs
@@ -58,6 +58,7 @@ export default async function NewTripPage({
                   {selectedArea.region}
                 </span>
               </div>
+              {selectedArea.parentArea?.reviewStatus === "reviewed" ? <p className="eyebrow">Subarea of {selectedArea.parentArea.name}</p> : null}
               <h3>{selectedArea.name}</h3>
               <p>{selectedArea.summary}</p>
               </article>

@@ -10,9 +10,13 @@ export default async function DestinationDetailPage({ params }: { params: Promis
   const hub = await getHubBySlug(slug);
   if (!hub) notFound();
 
-  const areaCamps = new Map(hub.areas.flatMap(({ climbingArea }) => climbingArea.campgroundLinks.map((link) => [link.campground.id, link.campground] as const)));
+  const planningAreas = hub.areas.flatMap(({ climbingArea }) => [
+    { ...climbingArea, parentName: null },
+    ...climbingArea.childAreas.map(child => ({ ...child, parentName: climbingArea.name }))
+  ]);
+  const areaCamps = new Map(planningAreas.flatMap(climbingArea => climbingArea.campgroundLinks.map((link) => [link.campground.id, link.campground] as const)));
   const points = [
-    ...hub.areas.map(({ climbingArea }) => ({ name: climbingArea.name, lat: climbingArea.lat, lng: climbingArea.lng, kind: "area" as const, detail: `${climbingArea.bestFor} · ${climbingArea.approachMinutes ?? "Varies"} min approach`, href: `/areas/${climbingArea.slug}` })),
+    ...planningAreas.map(climbingArea => ({ name: climbingArea.name, lat: climbingArea.lat, lng: climbingArea.lng, kind: "area" as const, detail: `${climbingArea.bestFor} · ${climbingArea.approachMinutes ?? "Varies"} min approach`, href: `/areas/${climbingArea.slug}` })),
     ...Array.from(areaCamps.values()).map((campground) => ({ name: campground.name, lat: campground.lat, lng: campground.lng, kind: "campground" as const, detail: campground.type, href: campground.reservationUrl ?? undefined }))
   ];
 
@@ -33,8 +37,8 @@ export default async function DestinationDetailPage({ params }: { params: Promis
       </section>
 
       <section className="section planning-workspace">
-        <div className="section-head"><div><p className="eyebrow">Build the climbing plan</p><h2>Choose your stops</h2><p>Select areas to reveal a deduplicated camp comparison with a drive time for every selected crag.</p></div><span className="pill"><BadgeCheck size={14} /> Curated planning data</span></div>
-        <DestinationPlanner hubSlug={hub.slug} areas={hub.areas.map(({ climbingArea }) => climbingArea)} />
+        <div className="section-head"><div><p className="eyebrow">Build the climbing plan</p><h2>Choose your stops</h2><p>Choose a broad area or a specific subarea. Compare only reviewed camp drives; missing relationships are shown explicitly.</p></div><span className="pill"><BadgeCheck size={14} /> Curated planning data</span></div>
+        <DestinationPlanner hubSlug={hub.slug} areas={planningAreas} />
       </section>
 
       <section className="section secondary-browse">

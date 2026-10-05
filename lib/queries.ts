@@ -26,6 +26,17 @@ export function getAreas() {
   });
 }
 
+// Planning supports reviewed subareas without changing the top-level discovery list.
+export function getPlanningAreas() {
+  return prisma.climbingArea.findMany({
+    where: { reviewStatus: "reviewed" },
+    orderBy: [{ region: "asc" }, { name: "asc" }],
+    select: { id: true, slug: true, name: true, region: true, summary: true,
+      parentArea: { select: { name: true, reviewStatus: true } }
+    }
+  });
+}
+
 export function getAreaBySlug(slug: string) {
   return prisma.climbingArea.findUnique({
     where: { slug, reviewStatus: "reviewed" },
@@ -92,6 +103,17 @@ export function getHubBySlug(slug: string) {
         include: {
           climbingArea: {
             include: {
+              childAreas: {
+                where: { reviewStatus: "reviewed" },
+                orderBy: { name: "asc" },
+                include: {
+                  campgroundLinks: {
+                    where: { reviewStatus: "reviewed", campground: { reviewStatus: "reviewed" } },
+                    orderBy: { rank: "asc" },
+                    include: { campground: true }
+                  }
+                }
+              },
               campgroundLinks: {
                 where: {
                   reviewStatus: "reviewed",

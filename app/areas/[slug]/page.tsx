@@ -31,7 +31,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
         <ArrowLeft size={17} />
         Areas
       </Link>
-      {area.parentArea ? (
+      {area.parentArea?.reviewStatus === "reviewed" ? (
         <p className="area-breadcrumb">
           <Link href={`/areas/${area.parentArea.slug}`}>{area.parentArea.name}</Link>
           <span aria-hidden="true">/</span>

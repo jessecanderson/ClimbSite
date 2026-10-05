@@ -3,52 +3,12 @@
 import { useMemo, useState } from "react";
 import { Check, Clock, ExternalLink, MapPin, Route, Tent } from "lucide-react";
 
-type CampLink = {
-  id: string;
-  rank: number;
-  driveMinutes: number;
-  miles: number;
-  logisticsNote: string;
-  campground: {
-    id: string;
-    name: string;
-    type: string;
-    amenities: string;
-    campingFit: string;
-    reservationUrl: string | null;
-  };
-};
+import { compareCamps, type PlanningArea } from "@/lib/camp-comparison";
 
-type Area = {
-  id: string;
-  slug: string;
-  name: string;
-  bestFor: string;
-  approachMinutes: number | null;
-  roadDifficulty: string;
-  parking: string;
-  campgroundLinks: CampLink[];
-};
-
-export function DestinationPlanner({ hubSlug, areas }: { hubSlug: string; areas: Area[] }) {
+export function DestinationPlanner({ hubSlug, areas }: { hubSlug: string; areas: PlanningArea[] }) {
   const [selected, setSelected] = useState(() => new Set(areas[0] ? [areas[0].id] : []));
   const selectedAreas = areas.filter((area) => selected.has(area.id));
-  const camps = useMemo(() => {
-    const grouped = new Map<string, { campground: CampLink["campground"]; rank: number; links: Array<{ area: string; driveMinutes: number; miles: number; note: string }> }>();
-    for (const area of selectedAreas) {
-      for (const link of area.campgroundLinks) {
-        const current = grouped.get(link.campground.id) ?? {
-          campground: link.campground,
-          rank: link.rank,
-          links: []
-        };
-        current.rank = Math.min(current.rank, link.rank);
-        current.links.push({ area: area.name, driveMinutes: link.driveMinutes, miles: link.miles, note: link.logisticsNote });
-        grouped.set(link.campground.id, current);
-      }
-    }
-    return [...grouped.values()].sort((a, b) => a.rank - b.rank || a.campground.name.localeCompare(b.campground.name));
-  }, [selectedAreas]);
+  const camps = useMemo(() => compareCamps(selectedAreas), [selectedAreas]);
 
   function toggle(id: string) {
     setSelected((current) => {
@@ -69,7 +29,7 @@ export function DestinationPlanner({ hubSlug, areas }: { hubSlug: string; areas:
               <input type="checkbox" name="area" value={area.slug} checked={isSelected} onChange={() => toggle(area.id)} />
               <span className="selection-check" aria-hidden="true"><Check size={15} /></span>
               <span className="planning-area-content">
-                <span className="eyebrow">{isSelected ? "Selected stop" : "Climbing area"}</span>
+                <span className="eyebrow">{area.parentName ? `Subarea · ${area.parentName}` : isSelected ? "Selected stop" : "Climbing area"}</span>
                 <strong>{area.name}</strong>
                 <small>{area.bestFor}</small>
                 <span className="metric-row">
@@ -88,7 +48,7 @@ export function DestinationPlanner({ hubSlug, areas }: { hubSlug: string; areas:
         <div>
           <p className="eyebrow">Camp comparison</p>
           <h2>Compare the morning drive</h2>
-          <p>Suggestions use curated relationship rankings. They are not live availability or booking advice.</p>
+          <p>Coverage comes first, followed by the longest drive and total drive time (shorter is better). Totals include one one-way camp-to-area drive per covered stop; these are curated estimates, not live routes or availability.</p>
         </div>
         <button className="button" type="submit" disabled={selected.size === 0}>
           <Route size={17} /> Continue with {selected.size || "no"} {selected.size === 1 ? "stop" : "stops"}
@@ -106,11 +66,14 @@ export function DestinationPlanner({ hubSlug, areas }: { hubSlug: string; areas:
               <div>
                 <span className="recommendation">{index === 0 ? "Top planning suggestion" : `Option ${index + 1}`}</span>
                 <h3>{item.campground.name}</h3>
+                <p className="camp-coverage">Serves {item.links.length} of {selectedAreas.length} stops</p>
+                <p className="camp-drive-summary">Longest drive: {item.longestDriveMinutes} min · Total: {item.totalDriveMinutes} min{item.missingAreas.length ? " across covered stops" : ""}</p>
+                {item.missingAreas.length ? <p className="field-error">No reviewed drive for: {item.missingAreas.join(", ")}</p> : null}
                 <span className="camp-type"><Tent size={15} /> {item.campground.type}</span>
               </div>
               <div className="drive-list">
                 {item.links.map((link) => (
-                  <div key={link.area}>
+                  <div key={link.areaId}>
                     <strong>{link.area}</strong>
                     <span>{link.driveMinutes} min · {link.miles} mi</span>
                   </div>
@@ -119,10 +82,10 @@ export function DestinationPlanner({ hubSlug, areas }: { hubSlug: string; areas:
               <div className="camp-fit">
                 <strong>Climbing fit</strong>
                 <p>{item.campground.campingFit}</p>
-                <details><summary>Amenities & logistics</summary><p>{item.campground.amenities}</p></details>
+                <details><summary>Amenities & logistics</summary><p>{item.campground.amenities}</p>{item.links.map(link => <p key={link.areaId}><strong>{link.area}:</strong> {link.note}</p>)}</details>
               </div>
-              {item.campground.reservationUrl ? (
-                <a className="ghost-button" href={item.campground.reservationUrl} target="_blank" rel="noopener noreferrer">
+              {item.campground.reservationUrl || item.campground.sourceUrl ? (
+                <a className="ghost-button" href={item.campground.reservationUrl ?? item.campground.sourceUrl ?? undefined} target="_blank" rel="noopener noreferrer">
                   <ExternalLink size={16} /> Verify details
                 </a>
               ) : <span className="muted-label">No source link</span>}

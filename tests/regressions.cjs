@@ -140,3 +140,29 @@ test('trip row lock scopes access to the owner before invoking a mutation', asyn
 test('the final trip day is valid despite Postgres midnight timestamps', () => {
   assert.equal(formState.isDateInTrip(new Date('2026-10-11T12:00Z'),new Date('2026-10-10T00:00Z'),new Date('2026-10-11T00:00Z')),true);
 });
+const {compareCamps} = load('lib/camp-comparison.ts');
+function campLink(id, driveMinutes, rank = 0) {
+  return {id,rank,driveMinutes,miles:10,logisticsNote:'Reviewed drive',campground:{id,name:id,type:'Tent',amenities:'Water',campingFit:'Good',reservationUrl:null,sourceUrl:'https://example.com'}};
+}
+function planningArea(id, links) {return {id,slug:id,name:id,bestFor:'Sport',approachMinutes:10,roadDifficulty:'Paved',parking:'Lot',campgroundLinks:links};}
+test('camp comparison prioritizes coverage over a short drive to just one stop', () => {
+  const camps = compareCamps([planningArea('A',[campLink('single',1),campLink('shared',25)]),planningArea('B',[campLink('shared',30)])]);
+  assert.equal(camps[0].campground.id,'shared');
+  assert.equal(camps[0].links.length,2);
+  assert.equal(camps[0].totalDriveMinutes,55);
+  assert.equal(camps[0].longestDriveMinutes,30);
+  assert.equal(camps[1].missingAreas[0],'B');
+});
+test('equal coverage favors the shorter longest drive before total drive', () => {
+  const camps = compareCamps([planningArea('A',[campLink('balanced',20),campLink('uneven',1)]),planningArea('B',[campLink('balanced',20),campLink('uneven',30)])]);
+  assert.equal(camps[0].campground.id,'balanced');
+});
+test('planning query includes reviewed subareas while discovery stays top-level', async () => {
+  const queries = [];
+  const api = load('lib/queries.ts',{'@/lib/prisma':{prisma:{climbingArea:{findMany:async query => {queries.push(query); return [];}}}}});
+  await api.getPlanningAreas();
+  await api.getAreas();
+  assert.equal(queries[0].where.reviewStatus,'reviewed');
+  assert.equal(queries[0].where.parentAreaId,undefined);
+  assert.equal(queries[1].where.parentAreaId,null);
+});

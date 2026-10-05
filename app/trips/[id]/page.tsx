@@ -24,7 +24,7 @@ import {
 import { DeleteTripButton } from "@/components/DeleteTripButton";
 import { ShareTripButton } from "@/components/ShareTripButton";
 import { getCurrentUser } from "@/lib/auth";
-import { getAreas, getTripForUser } from "@/lib/queries";
+import { getPlanningAreas, getTripForUser } from "@/lib/queries";
 import { DynamicAreaMap } from "@/components/DynamicAreaMap";
 import { SubmitButton } from "@/components/SubmitButton";
 import { formatDateInput, formatTripDate, formatTripDateRange } from "@/lib/dates";
@@ -45,7 +45,7 @@ export default async function TripDetailPage({
 
   const { id } = await params;
   const { error, notice } = await searchParams;
-  const [trip, areas] = await Promise.all([getTripForUser(id, user.id), getAreas()]);
+  const [trip, areas] = await Promise.all([getTripForUser(id, user.id), getPlanningAreas()]);
 
   if (!trip) {
     notFound();
@@ -433,7 +433,7 @@ export default async function TripDetailPage({
                 <FormSelect className="input" name="climbingAreaId" defaultValue={availableAreas[0]?.id} required>
                   {availableAreas.map((area) => (
                     <option value={area.id} key={area.id}>
-                      {area.name}
+                      {area.parentArea?.reviewStatus === "reviewed" ? `${area.parentArea.name} › ${area.name}` : area.name}
                     </option>
                   ))}
                 </FormSelect>
