@@ -19,7 +19,7 @@
 .review-status p { margin: 8px 0 0; line-height: 1.5; }
 .review-status.compact { background: transparent; border: 0; padding: 0; color: var(--muted); }
 .explorer-map { position: sticky; top: 100px; min-width: 0; }
-.explorer-map .map-shell { height: 520px; }
+.explorer-map .map-shell { height: 520px; isolation: isolate; overflow: hidden; border-radius: 8px; }
 .map-context { font-size: .8rem; color: var(--muted); margin-top: 0; }
 .explorer-view-toggle { display: none; margin-bottom: 16px; gap: 8px; }
 .explorer-view-toggle [aria-pressed="true"] { background: var(--green); color: white; }
@@ -35,7 +35,7 @@
 @media (max-width: 800px) {
   .explorer-layout { grid-template-columns: minmax(0, 1fr); }
   .explorer-view-toggle { display: flex; }
-  .explorer-list .explorer-map, .explorer-map .explorer-cards { display: none; }
+  .view-list .explorer-map, .view-map .explorer-cards { display: none; }
   .explorer-map { position: static; }
   .explorer-map .map-shell { height: 420px; }
   .trip-summary-bar { position: static; }

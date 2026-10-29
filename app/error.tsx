@@ -11,7 +11,7 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
         <p className="eyebrow">Something went wrong</p>
         <h1>We couldn’t load this part of ClimbSite.</h1>
         <p className="lead">
-          Your saved data has not been removed. Try the request again, or return to your trips.
+          Try the request again, or return to your trips to check the latest saved version.
         </p>
         <div className="actions">
           <button className="button" type="button" onClick={reset}>

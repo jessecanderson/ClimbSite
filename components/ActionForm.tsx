@@ -39,15 +39,15 @@ function useField(name: string | undefined, initial: string | number | readonly 
 
 export function FormInput({ defaultValue, ...props }: ComponentProps<"input">) {
   const { value, setValue, error, id } = useField(props.name, defaultValue);
-  return <><input {...props} value={value} onChange={event => setValue(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? id : props["aria-describedby"]} />{error ? <small className="field-error" id={id}>{error}</small> : null}</>;
+  return <><input {...props} value={value} onChange={event => setValue(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? id : props["aria-describedby"]} />{error ? <small className="field-error" id={id} aria-hidden="true">{error}</small> : null}</>;
 }
 
 export function FormTextarea({ defaultValue, ...props }: ComponentProps<"textarea">) {
   const { value, setValue, error, id } = useField(props.name, defaultValue);
-  return <><textarea {...props} value={value} onChange={event => setValue(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? id : props["aria-describedby"]} />{error ? <small className="field-error" id={id}>{error}</small> : null}</>;
+  return <><textarea {...props} value={value} onChange={event => setValue(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? id : props["aria-describedby"]} />{error ? <small className="field-error" id={id} aria-hidden="true">{error}</small> : null}</>;
 }
 
 export function FormSelect({ defaultValue, ...props }: ComponentProps<"select">) {
   const { value, setValue, error, id } = useField(props.name, defaultValue);
-  return <><select {...props} value={value} onChange={event => setValue(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? id : props["aria-describedby"]} />{error ? <small className="field-error" id={id}>{error}</small> : null}</>;
+  return <><select {...props} value={value} onChange={event => setValue(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? id : props["aria-describedby"]} />{error ? <small className="field-error" id={id} aria-hidden="true">{error}</small> : null}</>;
 }

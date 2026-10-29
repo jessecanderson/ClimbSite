@@ -38,7 +38,7 @@ test('mapped changes are detected even if source payload stays identical', () =>
 function actions(prisma) {
   const mocks = {
     'next/navigation': { redirect: path => { throw new Error(`REDIRECT:${path}`); }, unstable_rethrow: error => { if (error.message?.startsWith('REDIRECT:')) throw error; } },
-    'next/cache': { revalidatePath() {} }, '@/lib/observability': {reportOperationalEvent: async () => {}}, '@/auth': {}, '@/lib/auth-config': load('lib/auth-config.ts'), '@/lib/admin': { requireAdmin: async () => ({}) },
+    'next/cache': { revalidatePath() {} }, '@/lib/itinerary': load('lib/itinerary.ts', {'./dates': dates, './trip-planning': planning}), '@/lib/observability': {reportOperationalEvent: async () => {}}, '@/auth': {}, '@/lib/auth-config': load('lib/auth-config.ts'), '@/lib/admin': { requireAdmin: async () => ({}) },
     '@/lib/auth': { getCurrentUser: async () => ({ id: 'user' }) }, '@/lib/form-state': formState,
     '@/lib/trip-mutations': load('lib/trip-mutations.ts', {'./prisma': {prisma: {...prisma, $transaction: async fn => fn({...prisma, $queryRaw: async () => [{id:tripId}]})}}}),
     '@/lib/navigation': load('lib/navigation.ts'), '@/lib/import-matching': {}, '@/lib/editorial-slugs': load('lib/editorial-slugs.ts', {'./prisma': {prisma}}), '@/lib/prisma': { prisma },
@@ -216,4 +216,49 @@ test('email fallback cannot be enabled outside explicit local development', () =
   }
   assert.equal(authAvailability({ NODE_ENV:'development', AUTH_EMAIL_FALLBACK:'true' }).emailFallbackEnabled, true);
   assert.equal(authAvailability({ NODE_ENV:'development' }).emailFallbackEnabled, false);
+});
+
+test('itinerary groups dated stops chronologically and keeps undated stops last', () => {
+  const { groupStops, adjacentStopIndex } = load('lib/itinerary.ts', {'./dates': dates, './trip-planning': planning});
+  const stops = [
+    {id:'a', order:1, plannedDate:null},
+    {id:'b', order:2, plannedDate:new Date('2027-04-12T00:00Z')},
+    {id:'c', order:3, plannedDate:new Date('2027-04-10T12:00Z')},
+    {id:'d', order:4, plannedDate:null}
+  ];
+  assert.deepEqual(Array.from(groupStops(stops), group => group.key), ['2027-04-10','2027-04-12','undated']);
+  assert.equal(adjacentStopIndex(stops,'a','down'),3);
+  assert.equal(adjacentStopIndex(stops,'b','down'),-1);
+  assert.equal(adjacentStopIndex(stops,'missing','up'),-1);
+});
+test('discovery filtering preserves publication checks, search, and bounded pagination', () => {
+  const { areaWhere, discoveryPage } = load('lib/discovery.ts');
+  const where = areaWhere({ q:'  sandstone ', region:'Kentucky', camping:'yes', approach:'long' });
+  assert.equal(where.reviewStatus,'reviewed');
+  assert.equal(where.parentAreaId,null);
+  assert.equal(where.OR[0].name.contains,'sandstone');
+  assert.equal(where.campgroundLinks.some.campground.reviewStatus,'reviewed');
+  assert.equal(discoveryPage('999',25),3);
+  assert.equal(discoveryPage('-1',25),1);
+  assert.equal(discoveryPage('abc',0),1);
+});
+test('review status distinguishes old and missing checks without claiming live conditions', () => {
+  const {reviewStatus} = load('lib/review-status.ts');
+  const now = Date.parse('2026-10-29T00:00Z');
+  assert.equal(reviewStatus(null,now),'Review date unavailable');
+  assert.equal(reviewStatus('2026-06-01',now),'Review is over 90 days old');
+  assert.equal(reviewStatus('2026-10-28',now),'Reviewed within 90 days');
+});
+test('source health identifies failed, stuck, and overdue syncs', async () => {
+  const now = Date.parse('2026-10-29T12:00Z');
+  const profiles = [
+    {status:'FAILED',lastStartedAt:new Date(now),lastFinishedAt:new Date(now),refreshIntervalDays:7},
+    {status:'RUNNING',lastStartedAt:new Date(now-21*60000),lastFinishedAt:new Date(now),refreshIntervalDays:7},
+    {status:'IDLE',lastStartedAt:new Date(now-10*86400000),lastFinishedAt:new Date(now-10*86400000),refreshIntervalDays:7}
+  ];
+  const {sourceHealth} = load('lib/source-health.ts',{'./prisma':{prisma:{sourceSyncProfile:{findMany:async()=>profiles}}}});
+  const health = await sourceHealth(now);
+  assert.equal(health.ok,false);
+  assert.equal(health.failedProfiles,1);
+  assert.equal(health.staleProfiles,2);
 });

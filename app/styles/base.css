@@ -247,7 +247,7 @@ p {
   z-index: 0;
 }
 
-.map-frame .leaflet-container {
+.map-shell .leaflet-container {
   height: 100%;
   width: 100%;
 }

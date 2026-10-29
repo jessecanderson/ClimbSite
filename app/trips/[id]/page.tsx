@@ -1,3 +1,7 @@
+import { groupStops, itineraryText } from "@/lib/itinerary";
+import { ReviewStatus } from "@/components/ReviewStatus";
+import { TripDocument } from "@/components/TripDocument";
+import { TripExportButtons } from "@/components/TripExportButtons";
 import { isDateInTrip } from "@/lib/form-state";
 import { FeedbackLink } from "@/components/FeedbackLink";
 import { loginPath } from "@/lib/navigation";
@@ -61,32 +65,8 @@ export default async function TripDetailPage({
     (area) => !trip.stops.some((stop) => stop.climbingAreaId === area.id)
   );
   const tripDateRange = formatTripDateRange(trip.startDate, trip.endDate);
-  const shareSummary = [
-    `${trip.name}`,
-    tripDateRange ? `Dates: ${tripDateRange}` : null,
-    trip.notes ? `Notes: ${trip.notes}` : null,
-    "",
-    ...trip.stops.map((stop) => {
-      const selectedLink = selectedCampLink(stop);
-
-      return [
-        `Stop ${stop.order}: ${stop.climbingArea.name}`,
-        stop.plannedDate ? `Climbing date: ${formatTripDate(stop.plannedDate)}` : null,
-        `Area source: ${stop.climbingArea.sourceUrl ?? "No source link saved"}`,
-        selectedLink
-          ? `Camp: ${selectedLink.campground.name} (${selectedLink.driveMinutes} min, ${selectedLink.miles} mi)`
-          : stop.selectedCampgroundId ? `Camp: ${stop.selectedCampground?.name ?? "Previous selection"} — needs reconfirmation` : "Camp: Not selected",
-        selectedLink?.campground.reservationUrl
-          ? `Camp details: ${selectedLink.campground.reservationUrl}`
-          : null,
-        stop.notes ? `Stop notes: ${stop.notes}` : null
-      ]
-        .filter(Boolean)
-        .join("\n");
-    })
-  ]
-    .filter((line) => line !== null)
-    .join("\n");
+  const shareSummary = itineraryText(trip);
+  const days = groupStops(trip.stops);
   const points = trip.stops.flatMap((stop) => [
     {
       name: stop.climbingArea.name,
@@ -111,7 +91,8 @@ export default async function TripDetailPage({
   ]);
 
   return (
-    <main className="page">
+    <>
+    <main className="page trip-workspace">
       <section className="two-col">
         <div>
           <p className="eyebrow">Saved Trip</p>
@@ -131,6 +112,7 @@ export default async function TripDetailPage({
           </div>
           <div className="actions">
             <ShareTripButton summary={shareSummary} />
+            <TripExportButtons tripId={trip.id} />
             <FeedbackLink context={`/trips/${trip.id}`} subject={`Trip feedback: ${trip.name}`} />
             <DeleteTripButton tripId={trip.id} tripName={trip.name} />
           </div>
@@ -140,7 +122,8 @@ export default async function TripDetailPage({
         </div>
       </section>
 
-      <section className="section two-col">
+      <div className="trip-summary-bar" aria-label="Trip overview"><strong>{trip.name}</strong><span>{tripDateRange ?? "Dates not set"}</span><span>{trip.stops.length} stops · {selectedCampCount} camps selected</span><a className="text-link" href="#itinerary">Jump to itinerary</a></div>
+      <section className="section two-col" id="itinerary">
         <div>
           <div className="section-head">
             <div>
@@ -186,15 +169,17 @@ export default async function TripDetailPage({
               </Link>
             </div>
           ) : (
-            <div className="list">
-              {trip.stops.map((stop) => {
+            <div>
+              {days.map(day => <section className="itinerary-day" key={day.key}>
+              <h3>{day.label}</h3><div className="list">
+              {day.stops.map((stop, dayIndex) => {
                 const selectedLink = selectedCampLink(stop);
 
                 return (
                   <details className="trip-stop" name="trip-stops" key={stop.id} open={trip.stops.length === 1}>
                     <summary className="trip-stop-summary">
                       <span className="split-title">
-                        <span className="stop-index">{stop.order}</span>
+                        <span className="stop-index">{dayIndex + 1}</span>
                         <span>
                           <strong className="trip-stop-name">{stop.climbingArea.name}</strong>
                           <span className="trip-stop-subtitle">{stop.climbingArea.bestFor}</span>
@@ -244,9 +229,9 @@ export default async function TripDetailPage({
                             <input type="hidden" name="tripId" value={trip.id} />
                             <input type="hidden" name="stopId" value={stop.id} />
                             <SubmitButton
-                              ariaLabel={`Move ${stop.climbingArea.name} earlier`}
+                              ariaLabel={`Move ${stop.climbingArea.name} earlier within this day`}
                               className="ghost-button icon-button"
-                              disabled={stop.order === 1}
+                              disabled={dayIndex === 0}
                               name="direction"
                               pendingLabel="…"
                               title="Move stop earlier"
@@ -259,9 +244,9 @@ export default async function TripDetailPage({
                             <input type="hidden" name="tripId" value={trip.id} />
                             <input type="hidden" name="stopId" value={stop.id} />
                             <SubmitButton
-                              ariaLabel={`Move ${stop.climbingArea.name} later`}
+                              ariaLabel={`Move ${stop.climbingArea.name} later within this day`}
                               className="ghost-button icon-button"
-                              disabled={stop.order === trip.stops.length}
+                              disabled={dayIndex === day.stops.length - 1}
                               name="direction"
                               pendingLabel="…"
                               title="Move stop later"
@@ -410,6 +395,7 @@ export default async function TripDetailPage({
                   </details>
                 );
               })}
+              </div></section>)}
             </div>
           )}
         </div>
@@ -499,6 +485,15 @@ export default async function TripDetailPage({
             </ActionForm>
           </details>
 
+          <article className="card">
+            <h3>Before you leave</h3>
+            <ul className="verification-list">
+              {trip.stops.map(stop => <li key={stop.id}>{stop.climbingArea.sourceUrl ? <a href={stop.climbingArea.sourceUrl} target="_blank" rel="noopener noreferrer">Check access and closures for {stop.climbingArea.name}</a> : `Find an access source for ${stop.climbingArea.name}`}
+                <ReviewStatus reviewedAt={stop.climbingArea.lastReviewedAt} compact />
+                {selectedCampLink(stop) ? <><p>{selectedCampLink(stop)!.campground.reservationUrl ? <a href={selectedCampLink(stop)!.campground.reservationUrl!} target="_blank" rel="noopener noreferrer">Verify camping, permits, and reservations at {selectedCampLink(stop)!.campground.name}</a> : `Verify camping directly with ${selectedCampLink(stop)!.campground.name}`}</p><ReviewStatus reviewedAt={selectedCampLink(stop)!.campground.lastReviewedAt} compact /></> : <p>Choose or reconfirm camping.</p>}
+              </li>)}
+            </ul>
+          </article>
           <article className="planning-note">
             <BadgeCheck size={18} />
             <p>
@@ -509,5 +504,7 @@ export default async function TripDetailPage({
         </aside>
       </section>
     </main>
+    <TripDocument trip={trip} />
+    </>
   );
 }

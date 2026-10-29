@@ -150,16 +150,8 @@ export function getTripForUser(tripId: string, userId: string) {
 }
 
 export function getTripsForUser(userId: string) {
-  return prisma.trip.findMany({
-    where: { userId },
-    orderBy: { updatedAt: "desc" },
-    include: {
-      stops: {
-        orderBy: { order: "asc" },
-        include: { climbingArea: true }
-      }
-    }
-  });
+  return prisma.trip.findMany({ where: { userId }, orderBy: { updatedAt: "desc" },
+    include: { _count: { select: { stops: true } } } });
 }
 
 export function getAreaRegions() {

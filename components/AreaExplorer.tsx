@@ -29,7 +29,7 @@ export function AreaExplorer({ areas }: { areas: Area[] }) {
       <button className="ghost-button" aria-pressed={view === "list"} onClick={() => setView("list")}>List</button>
       <button className="ghost-button" aria-pressed={view === "map"} onClick={() => setView("map")}>Map</button>
     </div>
-    <div className={`explorer-layout explorer-${view}`}>
+    <div className={`explorer-layout view-${view}`}>
       <div className="explorer-cards">
         {areas.map(area => <article key={area.id} tabIndex={-1} ref={node => { if (node) cardRefs.current.set(area.id, node); else cardRefs.current.delete(area.id); }}
           className={`card discovery-card${selected === area.id ? " is-selected" : ""}`}>

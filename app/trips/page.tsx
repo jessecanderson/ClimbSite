@@ -54,7 +54,7 @@ export default async function TripsPage() {
               <div className="meta-row">
                 <span className="pill">
                   <Route size={14} />
-                  {trip.stops.length} stops
+                  {trip._count.stops} stops
                 </span>
                 {formatTripDateRange(trip.startDate, trip.endDate) ? (
                   <span className="pill">

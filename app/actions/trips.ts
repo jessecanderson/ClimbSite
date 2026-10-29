@@ -1,5 +1,6 @@
 "use server";
 
+import { adjacentStopIndex } from "@/lib/itinerary";
 import { reportOperationalEvent } from "@/lib/observability";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -180,7 +181,7 @@ export async function moveStopAction(formData: FormData) {
   const result = await withTripLock(tripId, user.id, async (tx) => {
     const stops = await tx.tripStop.findMany({ where: { tripId }, orderBy: [{ order: "asc" }, { id: "asc" }] });
     const currentIndex = stops.findIndex(stop => stop.id === stopId);
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    const targetIndex = adjacentStopIndex(stops, stopId, direction);
     if (currentIndex >= 0 && targetIndex >= 0 && targetIndex < stops.length) {
       [stops[currentIndex], stops[targetIndex]] = [stops[targetIndex], stops[currentIndex]];
       for (const [index, stop] of stops.entries()) {

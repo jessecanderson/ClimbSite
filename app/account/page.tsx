@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarDays, Mail, Route, ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { getTripsForUser } from "@/lib/queries";
+import { prisma } from "@/lib/prisma";
 
 export default async function AccountPage() {
   const user = await getCurrentUser();
@@ -12,7 +12,7 @@ export default async function AccountPage() {
     redirect(loginPath("/account"));
   }
 
-  const trips = await getTripsForUser(user.id);
+  const tripCount = await prisma.trip.count({where:{userId:user.id}});
   const displayEmail = user.email ?? "No email on file";
 
   return (
@@ -44,7 +44,7 @@ export default async function AccountPage() {
           <article className="card">
             <Route color="#a14f35" />
             <h3>Saved Trips</h3>
-            <p>{trips.length} trip{trips.length === 1 ? "" : "s"} saved to this account.</p>
+            <p>{tripCount} trip{tripCount === 1 ? "" : "s"} saved to this account.</p>
             <Link className="ghost-button" href="/trips">
               View trips
             </Link>

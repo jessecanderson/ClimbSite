@@ -71,6 +71,9 @@ export function AreaMap({ points, selectedId, onSelect }: { points: Point[]; sel
             key={point.id ?? `${point.kind}-${point.name}`}
             opacity={selectedId && point.id !== selectedId ? 0.5 : 1}
             position={[point.lat, point.lng]}
+            title={point.name}
+            alt={point.name}
+            eventHandlers={onSelect && point.id ? { click: () => onSelect(point.id!) } : undefined}
             icon={point.kind === "area" ? areaIcon : campIcon}
           >
             <Popup>
