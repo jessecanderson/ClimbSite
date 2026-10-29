@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CircleUser, Compass, Database, ExternalLink, LogOut, Mail, Mountain, Route, User } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { logoutAction } from "@/app/actions";
+import { logoutAction } from "@/app/actions/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {

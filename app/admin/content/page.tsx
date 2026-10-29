@@ -1,11 +1,7 @@
 import Link from "next/link";
 import { BadgeCheck, Database, Link2, MapPin, Plus } from "lucide-react";
 import type { AreaCampgroundLink, Campground, ClimbingArea } from "@prisma/client";
-import {
-  saveAreaCampgroundLinkAction,
-  saveAreaContentAction,
-  saveCampgroundContentAction
-} from "@/app/actions";
+import { saveAreaCampgroundLinkAction, saveAreaContentAction, saveCampgroundContentAction } from "@/app/actions/content";
 import { requireAdmin } from "@/lib/admin";
 import { formatTripDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";

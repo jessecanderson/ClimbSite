@@ -1,17 +1,6 @@
 import Link from "next/link";
 import { CheckCircle2, Database, ExternalLink, FileSearch, Link2, RotateCw, Search, XCircle } from "lucide-react";
-import {
-  acceptImportCandidateAction,
-  acknowledgeImportSyncAction,
-  acknowledgeNonReviewSyncsAction,
-  createSourceSyncProfileAction,
-  linkImportCandidateAction,
-  processImportCandidatesAction,
-  runSourceSyncProfileAction,
-  toggleSourceSyncProfileAction,
-  undoAcceptImportCandidateAction,
-  updateImportCandidateStatusAction
-} from "@/app/actions";
+import { acceptImportCandidateAction, acknowledgeImportSyncAction, acknowledgeNonReviewSyncsAction, createSourceSyncProfileAction, linkImportCandidateAction, processImportCandidatesAction, runSourceSyncProfileAction, toggleSourceSyncProfileAction, undoAcceptImportCandidateAction, updateImportCandidateStatusAction } from "@/app/actions/imports";
 import { requireAdmin } from "@/lib/admin";
 import { importHierarchy, isImportCandidateInScope, suggestedImportTarget } from "@/lib/import-matching";
 import { prisma } from "@/lib/prisma";

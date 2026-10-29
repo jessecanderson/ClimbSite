@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Trash2, X } from "lucide-react";
-import { deleteTripAction } from "@/app/actions";
+import { deleteTripAction } from "@/app/actions/trips";
 import { SubmitButton } from "@/components/SubmitButton";
 
 type DeleteTripButtonProps = { tripId: string; tripName: string; compact?: boolean };

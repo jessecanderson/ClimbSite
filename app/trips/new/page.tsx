@@ -1,5 +1,5 @@
 import { ActionForm, FormInput, FormTextarea } from "@/components/ActionForm";
-import { createTripFormAction } from "@/app/actions";
+import { createTripFormAction } from "@/app/actions/trips";
 import { getCurrentUser } from "@/lib/auth";
 import { getPlanningAreas, getHubBySlug } from "@/lib/queries";
 import { SubmitButton } from "@/components/SubmitButton";

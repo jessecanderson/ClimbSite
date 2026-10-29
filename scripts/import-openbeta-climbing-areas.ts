@@ -1,7 +1,8 @@
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type Prisma } from "@prisma/client";
 import { analyzeImportSync } from "../lib/import-sync";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: 5000 }) });
 const openBetaEndpoint = "https://api.openbeta.io";
 const defaultTerms = [
   "Red River Gorge",

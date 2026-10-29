@@ -1,8 +1,9 @@
+import { authAvailability } from "@/lib/auth-config";
 import { LoginPanel } from "@/components/LoginRecovery";
 import { SubmitButton } from "@/components/SubmitButton";
 import { safeLocalPath } from "@/lib/navigation";
 import { Mail, ShieldCheck } from "lucide-react";
-import { loginAction, oauthLoginAction } from "@/app/actions";
+import { loginAction, oauthLoginAction } from "@/app/actions/auth";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -15,14 +16,7 @@ export default async function LoginPage({
   const user = await getCurrentUser();
   const { callbackUrl, error } = await searchParams;
   const redirectTo = safeLocalPath(callbackUrl);
-  const magicLinkEnabled = Boolean(process.env.AUTH_RESEND_KEY && process.env.AUTH_EMAIL_FROM);
-  const emailFallbackEnabled =
-    process.env.AUTH_EMAIL_FALLBACK === "true" ||
-    (process.env.NODE_ENV !== "production" && process.env.AUTH_EMAIL_FALLBACK !== "false");
-  const emailEnabled = magicLinkEnabled || emailFallbackEnabled;
-  const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
-  const appleEnabled = Boolean(process.env.AUTH_APPLE_ID && process.env.AUTH_APPLE_SECRET);
-  const hasProvider = emailEnabled || googleEnabled || appleEnabled;
+  const { magicLinkEnabled, emailEnabled, googleEnabled, appleEnabled, hasProvider } = authAvailability();
 
   if (user) {
     redirect(redirectTo);

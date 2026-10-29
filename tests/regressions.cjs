@@ -36,14 +36,15 @@ test('mapped changes are detected even if source payload stays identical', () =>
   assert.equal(analyzeImportSync(snapshot(), { name: 'Old' }, { name: 'Old' }).syncStatus, 'UNCHANGED');
 });
 function actions(prisma) {
-  return load('app/actions.ts', {
+  const mocks = {
     'next/navigation': { redirect: path => { throw new Error(`REDIRECT:${path}`); }, unstable_rethrow: error => { if (error.message?.startsWith('REDIRECT:')) throw error; } },
-    'next/cache': { revalidatePath() {} }, '@/auth': {}, '@/lib/admin': { requireAdmin: async () => ({}) },
+    'next/cache': { revalidatePath() {} }, '@/lib/observability': {reportOperationalEvent: async () => {}}, '@/auth': {}, '@/lib/auth-config': load('lib/auth-config.ts'), '@/lib/admin': { requireAdmin: async () => ({}) },
     '@/lib/auth': { getCurrentUser: async () => ({ id: 'user' }) }, '@/lib/form-state': formState,
     '@/lib/trip-mutations': load('lib/trip-mutations.ts', {'./prisma': {prisma: {...prisma, $transaction: async fn => fn({...prisma, $queryRaw: async () => [{id:tripId}]})}}}),
-    '@/lib/navigation': load('lib/navigation.ts'), '@/lib/import-matching': {}, '@/lib/prisma': { prisma },
+    '@/lib/navigation': load('lib/navigation.ts'), '@/lib/import-matching': {}, '@/lib/editorial-slugs': load('lib/editorial-slugs.ts', {'./prisma': {prisma}}), '@/lib/prisma': { prisma },
     '@/lib/source-sync-runner': { sourceRunnerOptions: ['RIDB_CAMPGROUNDS'] }
-  });
+  };
+  return Object.assign({}, ...['trips','imports','content'].map(name => load(`app/actions/${name}.ts`, mocks)));
 }
 const tripId = 'c1234567890123456789012345';
 const areaId = 'c2234567890123456789012345';
@@ -206,4 +207,13 @@ test('feedback status changes require admin authorization before writing', async
     '@/lib/prisma':{prisma:{feedback:{update:async () => assert.fail('must not change status')}}},'@/lib/feedback':feedbackValidation,'@/lib/navigation':navigation,'@/lib/form-state':formState
   });
   await assert.rejects(api.updateFeedbackStatusAction(form({id:areaId,status:'RESOLVED'})),/not admin/);
+});
+
+test('email fallback cannot be enabled outside explicit local development', () => {
+  const { authAvailability } = load('lib/auth-config.ts');
+  for (const mode of ['production','test',undefined]) {
+    assert.equal(authAvailability({ NODE_ENV: mode, AUTH_EMAIL_FALLBACK: 'true' }).emailFallbackEnabled, false);
+  }
+  assert.equal(authAvailability({ NODE_ENV:'development', AUTH_EMAIL_FALLBACK:'true' }).emailFallbackEnabled, true);
+  assert.equal(authAvailability({ NODE_ENV:'development' }).emailFallbackEnabled, false);
 });

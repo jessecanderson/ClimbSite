@@ -307,3 +307,17 @@ corepack pnpm db:generate
 
 The SQL creates only the feedback table, its indexes, and its account reference. It is a one-time
 installation script; do not rerun it after the table exists.
+
+## Runtime and release checks
+
+Use `nvm install && nvm use` for the patched Node 24 LTS runtime pinned in `.nvmrc`.
+`package.json` selects Node 24 on Vercel; Vercel manages its patch rollout. Build logs
+print and verify the actual runtime, requiring the October 21, 2026 security fixes.
+The app uses stable Next.js 16, React 19, Prisma 7, and the Auth.js v5 beta patch.
+Prisma 8 release candidates are intentionally excluded.
+
+Run `pnpm db:generate`, `pnpm typecheck`, `pnpm test`, and `pnpm build` before release.
+CI additionally migrates/seeds disposable PostgreSQL and runs database and browser tests.
+See [database deployment instructions](docs/DATABASE.md) before deploying these changes.
+Production can no longer use the development email fallback. Configure Google/Apple
+credentials or Resend with a verified sender domain before enabling real-user sign-in.

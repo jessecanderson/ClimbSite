@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -390,4 +389,12 @@ model Feedback {
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
+}
+
+model AuthRateLimit {
+  bucket    String   @id
+  attempts  Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

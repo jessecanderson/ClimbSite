@@ -16,14 +16,7 @@ import {
   Tent,
   Trash2
 } from "lucide-react";
-import {
-  addStopFormAction,
-  moveStopFormAction,
-  removeStopFormAction,
-  selectCampgroundFormAction,
-  updateStopFormAction,
-  updateTripFormAction
-} from "@/app/actions";
+import { addStopFormAction, moveStopFormAction, removeStopFormAction, selectCampgroundFormAction, updateStopFormAction, updateTripFormAction } from "@/app/actions/trips";
 import { DeleteTripButton } from "@/components/DeleteTripButton";
 import { ShareTripButton } from "@/components/ShareTripButton";
 import { getCurrentUser } from "@/lib/auth";

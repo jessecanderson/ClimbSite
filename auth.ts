@@ -7,10 +7,11 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
+import { authAvailability } from "@/lib/auth-config";
+import { allowAuthAttempt } from "@/lib/auth-rate-limit";
+
 const providers: NextAuthConfig["providers"] = [];
-const emailFallbackEnabled =
-  process.env.AUTH_EMAIL_FALLBACK === "true" ||
-  (process.env.NODE_ENV !== "production" && process.env.AUTH_EMAIL_FALLBACK !== "false");
+const { emailFallbackEnabled, magicLinkEnabled, googleEnabled, appleEnabled } = authAvailability();
 
 if (emailFallbackEnabled) {
   providers.push(
@@ -21,7 +22,7 @@ if (emailFallbackEnabled) {
         email: { label: "Email", type: "email" }
       },
       async authorize(credentials) {
-        const parsed = z.string().email().safeParse(credentials?.email);
+        const parsed = z.string().trim().toLowerCase().email().safeParse(credentials?.email);
 
         if (!parsed.success) {
           return null;
@@ -39,7 +40,7 @@ if (emailFallbackEnabled) {
   );
 }
 
-if (process.env.AUTH_RESEND_KEY && process.env.AUTH_EMAIL_FROM) {
+if (magicLinkEnabled) {
   providers.push(
     Resend({
       apiKey: process.env.AUTH_RESEND_KEY,
@@ -48,11 +49,11 @@ if (process.env.AUTH_RESEND_KEY && process.env.AUTH_EMAIL_FROM) {
   );
 }
 
-if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
+if (googleEnabled) {
   providers.push(Google);
 }
 
-if (process.env.AUTH_APPLE_ID && process.env.AUTH_APPLE_SECRET) {
+if (appleEnabled) {
   providers.push(Apple);
 }
 
@@ -67,7 +68,8 @@ export const {
     process.env.AUTH_SECRET ??
     (process.env.NODE_ENV === "production" ? undefined : "climbsite-development-auth-secret"),
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60
   },
   pages: {
     signIn: "/login",
@@ -75,6 +77,12 @@ export const {
   },
   providers,
   callbacks: {
+    async signIn({ user, email, account }) {
+      if (account?.provider === "resend" && email?.verificationRequest) {
+        return allowAuthAttempt(`email:${user.email?.trim().toLowerCase()}`, 5);
+      }
+      return true;
+    },
     jwt({ token, user }) {
       if (user?.id) {
         token.id = user.id;
