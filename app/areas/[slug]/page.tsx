@@ -1,3 +1,4 @@
+import { ReviewStatus } from "@/components/ReviewStatus";
 import { FeedbackLink } from "@/components/FeedbackLink";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -55,6 +56,7 @@ export default async function AreaDetailPage({ params }: { params: Promise<{ slu
               <span className="pill">Reviewed {formatTripDate(area.lastReviewedAt)}</span>
             ) : null}
           </div>
+          <ReviewStatus reviewedAt={area.lastReviewedAt} />
           <div className="area-metrics">
             <span className="metric-block">
               <Route size={14} />

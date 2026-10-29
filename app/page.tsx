@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ArrowRight, CalendarCheck, CheckCircle2, Compass, MapPin, Search, ShieldCheck, Tent } from "lucide-react";
-import { getAreas, getHubs } from "@/lib/queries";
+import { getAreaRegions, getHubs } from "@/lib/queries";
 
 export default async function HomePage() {
-  const [areas, hubs] = await Promise.all([getAreas(), getHubs()]);
-  const regions = [...new Set(areas.map((area) => area.region))].sort();
+  const [regionRows, hubs] = await Promise.all([getAreaRegions(), getHubs()]);
+  const regions = regionRows.map(row => row.region);
 
   return (
     <main>

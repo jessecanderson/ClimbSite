@@ -160,7 +160,7 @@ test('equal coverage favors the shorter longest drive before total drive', () =>
 });
 test('planning query includes reviewed subareas while discovery stays top-level', async () => {
   const queries = [];
-  const api = load('lib/queries.ts',{'@/lib/prisma':{prisma:{climbingArea:{findMany:async query => {queries.push(query); return [];}}}}});
+  const api = load('lib/queries.ts',{'./discovery': load('lib/discovery.ts'), '@/lib/prisma':{prisma:{climbingArea:{findMany:async query => {queries.push(query); return [];}}}}});
   await api.getPlanningAreas();
   await api.getAreas();
   assert.equal(queries[0].where.reviewStatus,'reviewed');

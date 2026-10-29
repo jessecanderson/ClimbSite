@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 
-type Point = {
+export type Point = {
+  id?: string;
   name: string;
   lat: number;
   lng: number;
@@ -27,6 +28,12 @@ const campIcon = L.divIcon({
   iconAnchor: [9, 9]
 });
 
+function SelectedMarker({ selectedId, points }: { selectedId?: string | null; points: Point[] }) {
+  const map = useMap();
+  useEffect(() => { const point = points.find(p => p.id === selectedId); if (point) map.setView([point.lat, point.lng], 11); }, [map, selectedId, points]);
+  return null;
+}
+
 function FitMapToPoints({ points }: { points: Point[] }) {
   const map = useMap();
 
@@ -47,25 +54,28 @@ function FitMapToPoints({ points }: { points: Point[] }) {
   return null;
 }
 
-export function AreaMap({ points }: { points: Point[] }) {
+export function AreaMap({ points, selectedId, onSelect }: { points: Point[]; selectedId?: string | null; onSelect?: (id: string) => void }) {
   const center = points[0] ?? { lat: 37.78, lng: -83.68 };
 
   return (
     <div className="map-shell">
       <MapContainer center={[center.lat, center.lng]} zoom={11} scrollWheelZoom={false}>
         <FitMapToPoints points={points} />
+        <SelectedMarker selectedId={selectedId} points={points} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {points.map((point) => (
           <Marker
-            key={`${point.kind}-${point.name}`}
+            key={point.id ?? `${point.kind}-${point.name}`}
+            opacity={selectedId && point.id !== selectedId ? 0.5 : 1}
             position={[point.lat, point.lng]}
             icon={point.kind === "area" ? areaIcon : campIcon}
           >
             <Popup>
               <strong>{point.name}</strong>
+              {onSelect && point.id ? <button type="button" onClick={() => onSelect(point.id!)}>Show area card</button> : null}
               {point.detail ? <p style={{ margin: "6px 0" }}>{point.detail}</p> : null}
               {point.href ? (
                 <a

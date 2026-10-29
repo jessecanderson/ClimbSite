@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+import { areaWhere, discoveryPage, AREA_PAGE_SIZE, type AreaFilters } from "./discovery";
 import { prisma } from "@/lib/prisma";
 
 export function getAreas() {
@@ -66,29 +68,8 @@ export function getHubs() {
   return prisma.destinationHub.findMany({
     orderBy: [{ region: "asc" }, { name: "asc" }],
     include: {
-      areas: {
-        where: { climbingArea: { reviewStatus: "reviewed", parentAreaId: null } },
-        orderBy: { rank: "asc" },
-        include: {
-          climbingArea: {
-            include: {
-              campgroundLinks: {
-                where: {
-                  reviewStatus: "reviewed",
-                  campground: { reviewStatus: "reviewed" }
-                },
-                orderBy: { rank: "asc" },
-                include: { campground: true }
-              }
-            }
-          }
-        }
-      },
-      campgrounds: {
-        where: { campground: { reviewStatus: "reviewed" } },
-        orderBy: { rank: "asc" },
-        include: { campground: true }
-      }
+      areas: { where: { climbingArea: { reviewStatus: "reviewed", parentAreaId: null } }, select: { climbingAreaId: true } },
+      campgrounds: { where: { campground: { reviewStatus: "reviewed" } }, select: { campgroundId: true } }
     }
   });
 }
@@ -179,4 +160,32 @@ export function getTripsForUser(userId: string) {
       }
     }
   });
+}
+
+export function getAreaRegions() {
+  return prisma.climbingArea.findMany({ where: { reviewStatus: "reviewed", parentAreaId: null },
+    distinct: ["region"], select: { region: true }, orderBy: { region: "asc" } });
+}
+
+export async function getAreaDiscovery(filters: AreaFilters) {
+  const where: Prisma.ClimbingAreaWhereInput = areaWhere(filters);
+  const campWhere = { reviewStatus: "reviewed", campground: { reviewStatus: "reviewed" } };
+  const [total, regionRows, hubs] = await Promise.all([
+    prisma.climbingArea.count({ where }), getAreaRegions(),
+    prisma.destinationHub.findMany({ where: { areas: { some: { climbingArea: { reviewStatus: "reviewed", parentAreaId: null } } } },
+      select: { id: true, slug: true, name: true }, orderBy: { name: "asc" } })
+  ]);
+  const page = discoveryPage(filters.page, total);
+  const rows = await prisma.climbingArea.findMany({ where, take: AREA_PAGE_SIZE, skip: (page - 1) * AREA_PAGE_SIZE,
+    orderBy: [{ region: "asc" }, { name: "asc" }, { id: "asc" }],
+    select: { id: true, slug: true, name: true, region: true, summary: true, bestFor: true,
+      lat: true, lng: true, approachMinutes: true, lastReviewedAt: true,
+      hubLinks: { take: 1, orderBy: { rank: "asc" }, select: { hub: { select: { name: true } } } },
+      _count: { select: { campgroundLinks: { where: campWhere } } }
+    }
+  });
+  return { total, page, pageSize: AREA_PAGE_SIZE, regions: regionRows.map(r => r.region), hubs,
+    areas: rows.map(({ _count, hubLinks, lastReviewedAt, ...area }) => ({ ...area,
+      campgroundCount: _count.campgroundLinks, destination: hubLinks[0]?.hub.name ?? area.region,
+      lastReviewedAt: lastReviewedAt?.toISOString() ?? null })) };
 }
