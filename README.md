@@ -26,6 +26,7 @@ ClimbSite is a climber-focused trip-planning app. It connects climbing areas, ne
 Install dependencies:
 
 ```bash
+nvm install && nvm use
 corepack pnpm install
 ```
 
@@ -33,7 +34,9 @@ Create and seed the database. Prisma is configured for Postgres, so `DATABASE_UR
 `postgresql://` or `postgres://`.
 
 ```bash
-corepack pnpm db:push
+set -a; source .env.local; set +a
+corepack pnpm db:generate
+corepack pnpm db:migrate
 corepack pnpm db:seed
 ```
 
@@ -74,9 +77,10 @@ NPS_API_KEY=""
 
 `AUTH_SECRET` is required in production. Local development has a fallback secret so pages can render
 before credentials are configured, but real deployments should always set a generated secret.
-`AUTH_EMAIL_FALLBACK` should be `true` only for local development or private testing. It is
-disabled by default in production, but an explicit production value of `true` enables it for a
-controlled tester deployment.
+`AUTH_EMAIL_FALLBACK=true` works only when `NODE_ENV=development`. It is always
+disabled in production and test builds, even when explicitly set to true. Real sign-in
+requires a configured provider. Email requests are limited to five per address per ten
+minutes, with additional IP throttling on Vercel auth endpoint requests.
 
 Auth providers are enabled only when their env vars are present:
 
@@ -113,21 +117,19 @@ Current auth routes:
 
 - `/login` shows configured sign-in methods.
 - `/login/check-email` confirms that a magic link was sent.
-- `/account` shows account identity, saved trip count, and future billing status.
+- `/account` shows account identity, saved trip count, and sign-in information.
 - `/api/auth/[...nextauth]` is the Auth.js route handler.
 
-After changing `prisma/schema.prisma`, run:
+After changing `prisma/schema.prisma`, load your development database environment, then run:
 
 ```bash
+corepack pnpm db:migrate:dev --name describe_change
 corepack pnpm db:generate
-corepack pnpm db:push
 ```
 
-If `.env` is not the Postgres env file, load the deployed/local Postgres env before pushing:
-
-```bash
-set -a; source .env.local; set +a; corepack pnpm db:push
-```
+Commit the migration SQL. Existing databases must first follow the one-time baseline
+procedure in [docs/DATABASE.md](docs/DATABASE.md). Use `db:migrate` for deployments;
+reserve `db:push` for disposable prototypes.
 
 ## Admin Account
 
@@ -296,12 +298,12 @@ Signed-in users can submit contextual reports at `/feedback`. Area and campgroun
 an internal page link; trip feedback includes the trip link. Admins review, resolve, and reopen
 reports at `/admin/feedback`. Submissions are limited to five per account per ten minutes.
 
-This feature adds the `Feedback` model. For a new development database, use the normal `db:push`
-workflow. For an existing database that does not yet have the feedback table, apply the additive SQL
+This feature adds the `Feedback` model. For a new empty database, use the `db:migrate`
+workflow, which includes Feedback in the baseline. For an existing database that does not yet have the feedback table, apply the additive SQL
 once before deploying this code, with the target database environment loaded:
 
 ```bash
-corepack pnpm exec prisma db execute --file prisma/add-feedback.sql --schema prisma/schema.prisma
+corepack pnpm exec prisma db execute --file prisma/add-feedback.sql
 corepack pnpm db:generate
 ```
 
@@ -321,3 +323,20 @@ CI additionally migrates/seeds disposable PostgreSQL and runs database and brows
 See [database deployment instructions](docs/DATABASE.md) before deploying these changes.
 Production can no longer use the development email fallback. Configure Google/Apple
 credentials or Resend with a verified sender domain before enabling real-user sign-in.
+
+## Discovery and itinerary workspaces
+
+Area discovery filters and paginates in PostgreSQL (12 results per page). Cards and
+map markers share selection; mobile users can switch between List and Map without
+losing filters. “Add to trip” retains the area through sign-in.
+
+Trips group stops by climbing date, with undated stops last. Reorder buttons move
+stops within their date group. Print itinerary uses a dedicated paper layout;
+Download itinerary saves a plain-text plan for offline reference. Exports remain
+private to the trip owner and use no-store response headers. Copied/downloaded
+plans include access and camping sources, review dates, and verification reminders.
+
+Review age is an editorial freshness hint (90-day threshold), not a live closure,
+weather, or campsite availability signal. Verify with the linked source before travel.
+
+Operational setup is documented in [docs/OPERATIONS.md](docs/OPERATIONS.md).

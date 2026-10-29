@@ -18,14 +18,14 @@
     "import:openbeta:climbing-areas": "tsx scripts/import-openbeta-climbing-areas.ts",
     "sync:ridb": "pnpm import:ridb:climbing-areas -- --state KY --limit 25 --max-pages 1 --activities 7,100041,100040,100035 && pnpm import:ridb:campgrounds -- --state KY --query campground --limit 25 --max-pages 1",
     "prebuild": "node scripts/check-runtime.cjs",
-    "test:db": "tsx --test tests/trip-concurrency.test.ts",
+    "test:db": "tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",
     "check": "pnpm typecheck && pnpm test && pnpm build",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.11.2",
+    "@auth/prisma-adapter": "2.11.3",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "^7.10.1",
     "leaflet": "^1.9.4",
@@ -36,17 +36,18 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-leaflet": "^5.0.0",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
     "@playwright/test": "^1.64.1",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "prisma": "^7.10.1",
-    "tsx": "^4.20.6",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   },
   "engines": {

@@ -15,8 +15,8 @@ including Feedback. Do not execute its CREATE statements against an existing dat
 2. Confirm Feedback exists. Older installations must first apply the legacy additive
    `prisma/add-feedback.sql` once, as described in the previous README instructions.
 3. With the target environment loaded, compare the baseline to the database:
-   `pnpm exec prisma migrate diff --from-config-datasource --to-migrations prisma/migrations --script`
-   (requires a development shadow database if Prisma requests one). Review all differences;
+   `pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`
+   Review all differences;
    the only intended new object is AuthRateLimit. Investigate other drift before proceeding.
 4. Mark the existing schema applied: `pnpm exec prisma migrate resolve --applied 0_init`.
 5. Run `pnpm db:migrate` to install subsequent additive migrations, before deploying code.

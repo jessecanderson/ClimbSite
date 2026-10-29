@@ -95,3 +95,32 @@ RUN_DB_TESTS=1 node --import tsx --test tests/trip-concurrency.test.ts
 - Resolve and reopen a feedback report as an admin. Confirm ordinary users cannot open the queue.
 - Confirm sign-in retains the exact trip/destination URL and has a pending state. Real OAuth and
   magic-link delivery are a separate auth-workflow verification pass.
+
+## October modernization checks
+
+Use the Node version in `.nvmrc`. With a disposable PostgreSQL database and a test-only
+AUTH_SECRET exported, run:
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+pnpm db:seed
+pnpm typecheck
+pnpm test
+RUN_DB_TESTS=1 pnpm test:db
+pnpm audit
+pnpm build
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+Browser tests start a production server on loopback port 3100. They issue signed test
+sessions for temporary accounts in the disposable database; no production bypass or
+real email delivery is enabled. They cover guest return paths, map/card selection,
+validation recovery, camp selection, dated groups, print media, and export ownership.
+Both desktop and mobile projects run. Temporary accounts and their trips are removed.
+
+Manually verify real provider callbacks and email delivery after configuring credentials.
+On a phone, select Map, tap a named marker, and confirm the matching card receives focus.
+Download a trip, disconnect from the network, and confirm its text file includes source
+URLs and notes. Use Print itinerary to save a PDF or print a paper copy.
