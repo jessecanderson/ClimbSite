@@ -16,6 +16,8 @@ test("map selection returns to the corresponding area card", async ({ page }) =>
   await page.goto("/areas");
   const card = page.getByRole("article").first();
   const areaName = (await card.getByRole("heading").innerText()).trim();
+  // Ensure the map has mounted before revealing it on mobile, reproducing CI.
+  await expect(page.locator(".leaflet-container")).toHaveCount(1);
   await card.getByRole("button", {name:"Show on map", exact:true}).click();
   await page.getByRole("button", {name:areaName, exact:true}).click();
   await expect(card).toBeFocused();

@@ -28,28 +28,30 @@ const campIcon = L.divIcon({
   iconAnchor: [9, 9]
 });
 
-function SelectedMarker({ selectedId, points }: { selectedId?: string | null; points: Point[] }) {
-  const map = useMap();
-  useEffect(() => { const point = points.find(p => p.id === selectedId); if (point) map.setView([point.lat, point.lng], 11); }, [map, selectedId, points]);
-  return null;
-}
-
-function FitMapToPoints({ points }: { points: Point[] }) {
+function FitMapToPoints({ points, selectedId }: { points: Point[]; selectedId?: string | null }) {
   const map = useMap();
 
   useEffect(() => {
-    if (points.length === 0) return;
-
-    if (points.length === 1) {
-      map.setView([points[0].lat, points[0].lng], 11);
-      return;
+    function fitVisibleMap() {
+      const container = map.getContainer();
+      if (!container.clientWidth || !container.clientHeight || points.length === 0) return;
+      // A mobile map may mount while its tab is hidden. Recompute Leaflet's cached
+      // dimensions after it becomes visible and whenever its container changes size.
+      map.invalidateSize({ animate: false, pan: false });
+      const selected = points.find(point => point.id === selectedId);
+      if (selected || points.length === 1) {
+        const point = selected ?? points[0];
+        map.setView([point.lat, point.lng], 11, { animate: false });
+      } else {
+        map.fitBounds(L.latLngBounds(points.map(point => [point.lat, point.lng] as [number, number])),
+          { padding: [36, 36], maxZoom: 11, animate: false });
+      }
     }
-
-    map.fitBounds(
-      L.latLngBounds(points.map((point) => [point.lat, point.lng] as [number, number])),
-      { padding: [36, 36], maxZoom: 11 }
-    );
-  }, [map, points]);
+    const observer = new ResizeObserver(fitVisibleMap);
+    observer.observe(map.getContainer());
+    fitVisibleMap();
+    return () => observer.disconnect();
+  }, [map, points, selectedId]);
 
   return null;
 }
@@ -60,8 +62,7 @@ export function AreaMap({ points, selectedId, onSelect }: { points: Point[]; sel
   return (
     <div className="map-shell">
       <MapContainer center={[center.lat, center.lng]} zoom={11} scrollWheelZoom={false}>
-        <FitMapToPoints points={points} />
-        <SelectedMarker selectedId={selectedId} points={points} />
+        <FitMapToPoints points={points} selectedId={selectedId} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
